@@ -34,6 +34,8 @@ ui <- dashboardPage(
         href = "radar_style.css")
     ),
     
+    useShinyjs(),
+    
     # MAIN BODY ---------------------------------------------------------------
     
     fluidRow(
@@ -50,8 +52,7 @@ ui <- dashboardPage(
                    style = "success")
       )
     ),
-    
-    fluid_design("diagnostics_panel", "box5", "box6", "box7", "box8"),
+
     tags$head(tags$style('.btn-default{ margin-left: 15px;}')),  # add the spacing,
     fluidRow(
         id = "gwas_panel",
@@ -73,32 +74,10 @@ ui <- dashboardPage(
         br()
     )
     ,
-    fluidRow(
-        id = "gwas_marginal_panel",
-        column(
-          width = 8,
-          uiOutput("box_pat")
-        ),
-        column(
-          width  = 4,
-          offset = 0, 
-          style  = 'padding-left:0px; padding-right:0px; padding-top:0px; padding-bottom:0px',
-          uiOutput("box_pat2")
-        )
-    ),
+    fluid_design("gwas_mb_marginal_panel", "mb", "marginal"),
+    fluid_design("gwas_mb_interaction_panel", "mb", "interaction"),
+    fluid_design("gwas_mb_joint_panel", "mb", "joint"),
     br(),
-    fluidRow(
-        id = "gwas_marginal_ss_panel",
-        fluidRow(
-          id = "gwas_marginal_tables",
-          column(width  = 6,
-                 offset = 0, 
-                 style  = 'padding-left:30px; padding-right:0px; padding-top:0px; padding-bottom:0px',
-                 uiOutput("box_pat3")),
-          column(width = 6,
-                 uiOutput("box_pat4")),          
-        )
-    ),
     br(),
     br(),
   )
