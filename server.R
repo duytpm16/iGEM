@@ -96,49 +96,166 @@ server <- function(input, output, session) {
   
   observeEvent("", {
     show("gwas_panel")
-    hide("diagnostics_panel")
+    hide("gwas_marginal_panel")
+    hide("gwas_interaction_panel")
+    hide("gwas_joint_panel")
     hide("gwas_mb_marginal_panel")
     hide("gwas_mb_interaction_panel")
     hide("gwas_mb_joint_panel")
+    hide("gwas_rb_marginal_panel")
+    hide("gwas_rb_interaction_panel")
+    hide("gwas_rb_joint_panel")
+    hide("diagnostics_panel")
+    
   }, once = TRUE)
   
   observeEvent(input$gwas, {
     show("gwas_panel")
-    hide("diagnostics_panel")
+    hide("gwas_marginal_panel")
+    hide("gwas_interaction_panel")
+    hide("gwas_joint_panel")
     hide("gwas_mb_marginal_panel")
     hide("gwas_mb_interaction_panel")
     hide("gwas_mb_joint_panel")
+    hide("gwas_rb_marginal_panel")
+    hide("gwas_rb_interaction_panel")
+    hide("gwas_rb_joint_panel")
+    hide("diagnostics_panel")
   })
   
   observeEvent(input$diagnostics, {
     show("diagnostics_panel")
-    hide("patients_panel")
+    hide("gwas_panel")
   })
   
   observeEvent(input$gwas_marginal, {
     show("gwas_panel")
-    show("gwas_mb_marginal_panel")
+    show("gwas_marginal_panel")
+    hide("gwas_interaction_panel")
+    hide("gwas_joint_panel")
+    hide("gwas_mb_marginal_panel")
     hide("gwas_mb_interaction_panel")
     hide("gwas_mb_joint_panel")
+    hide("gwas_rb_marginal_panel")
+    hide("gwas_rb_interaction_panel")
+    hide("gwas_rb_joint_panel")
     hide("diagnostics_panel")
   })
   
   observeEvent(input$gwas_interaction, {
     show("gwas_panel")
-    show("gwas_mb_interaction_panel")
+    show("gwas_interaction_panel")
+    hide("gwas_marginal_panel")
+    hide("gwas_joint_panel")
     hide("gwas_mb_marginal_panel")
+    hide("gwas_mb_interaction_panel")
     hide("gwas_mb_joint_panel")
+    hide("gwas_rb_marginal_panel")
+    hide("gwas_rb_interaction_panel")
+    hide("gwas_rb_joint_panel")
     hide("diagnostics_panel")
     
   })
+  
   observeEvent(input$gwas_joint, {
     show("gwas_panel")
-    show("gwas_mb_joint_panel")
+    show("gwas_joint_panel")
+    hide("gwas_marginal_panel")
+    hide("gwas_interaction_panel")
     hide("gwas_mb_marginal_panel")
     hide("gwas_mb_interaction_panel")
+    hide("gwas_mb_joint_panel")
+    hide("gwas_rb_marginal_panel")
+    hide("gwas_rb_interaction_panel")
+    hide("gwas_rb_joint_panel")
     hide("diagnostics_panel")
   })
   
+  observeEvent(input$gwas_mb_marginal, {
+    show("gwas_panel")
+    show("gwas_marginal_panel")
+    show("gwas_mb_marginal_panel")
+    hide("gwas_interaction_panel")
+    hide("gwas_joint_panel")
+    hide("gwas_mb_interaction_panel")
+    hide("gwas_mb_joint_panel")
+    hide("gwas_rb_marginal_panel")
+    hide("gwas_rb_interaction_panel")
+    hide("gwas_rb_joint_panel")
+    hide("diagnostics_panel")
+  })
+  
+  observeEvent(input$gwas_mb_interaction, {
+    show("gwas_panel")
+    show("gwas_interaction_panel")
+    show("gwas_mb_interaction_panel")
+    hide("gwas_marginal_panel")
+    hide("gwas_joint_panel")
+    hide("gwas_mb_marginal_panel")
+    hide("gwas_mb_joint_panel")
+    hide("gwas_rb_marginal_panel")
+    hide("gwas_rb_interaction_panel")
+    hide("gwas_rb_joint_panel")
+    hide("diagnostics_panel")
+    
+  })
+  
+  observeEvent(input$gwas_mb_joint, {
+    show("gwas_panel")
+    show("gwas_joint_panel")
+    show("gwas_mb_joint_panel")
+    hide("gwas_marginal_panel")
+    hide("gwas_interaction_panel")
+    hide("gwas_mb_marginal_panel")
+    hide("gwas_mb_interaction_panel")
+    hide("gwas_rb_marginal_panel")
+    hide("gwas_rb_interaction_panel")
+    hide("gwas_rb_joint_panel")
+    hide("diagnostics_panel")
+  })
+  
+  observeEvent(input$gwas_rb_marginal, {
+    show("gwas_panel")
+    show("gwas_marginal_panel")
+    show("gwas_rb_marginal_panel")
+    hide("gwas_interaction_panel")
+    hide("gwas_joint_panel")
+    hide("gwas_mb_marginal_panel")
+    hide("gwas_mb_interaction_panel")
+    hide("gwas_mb_joint_panel")
+    hide("gwas_rb_interaction_panel")
+    hide("gwas_rb_joint_panel")
+    hide("diagnostics_panel")
+  })
+  
+  observeEvent(input$gwas_rb_interaction, {
+    show("gwas_panel")
+    show("gwas_interaction_panel")
+    show("gwas_rb_interaction_panel")
+    hide("gwas_marginal_panel")
+    hide("gwas_joint_panel")
+    hide("gwas_mb_marginal_panel")
+    hide("gwas_mb_interaction_panel")
+    hide("gwas_mb_joint_panel")
+    hide("gwas_rb_marginal_panel")
+    hide("gwas_rb_joint_panel")
+    hide("diagnostics_panel")
+    
+  })
+  
+  observeEvent(input$gwas_rb_joint, {
+    show("gwas_panel")
+    show("gwas_joint_panel")
+    show("gwas_rb_joint_panel")
+    hide("gwas_marginal_panel")
+    hide("gwas_interaction_panel")
+    hide("gwas_mb_marginal_panel")
+    hide("gwas_mb_interaction_panel")
+    hide("gwas_mb_joint_panel")
+    hide("gwas_rb_marginal_panel")
+    hide("gwas_rb_interaction_panel")
+    hide("diagnostics_panel")
+  })
   
   # show active button with color
   
@@ -181,13 +298,17 @@ server <- function(input, output, session) {
     int_colnames <- c("Marginal", "Main", gsub("[-]", " x ", interactions[grepl("^G[-]", interactions)]))
     data$beta_columns <- paste0("Beta_", interactions[-1])
     data$se_columns   <- paste0("SE_Beta_", interactions[-1])
+    data$robust_se_columns <- paste0("robust_", data$se_columns)
     data$int_colnames <- int_colnames
     
     covariances  <- unlist(lapply(combn(interactions[-1], 2, simplify = FALSE), FUN = function(x) {paste0(x[1], "_", x[2])}))
     cov_rownames <- unlist(lapply(combn(int_colnames[-1], 2, simplify = FALSE), FUN = function(x) {paste0(x[1], "_", x[2])}))
-    cov_rownames <- gsub("[_]", ", ", paste0("cov(", cov_rownames, ")"))
+    robust_cov_rownames <- gsub("[_]", ", ", paste0("Cov<sub>R</sub>(", cov_rownames, ")"))
+    cov_rownames <- gsub("[_]", ", ", paste0("Cov(", cov_rownames, ")"))
     data$covariances  <- paste0("Cov_Beta_", covariances)
+    data$robust_covariances <- paste0("robust_", data$covariances)
     data$cov_rownames <- cov_rownames
+    data$robust_cov_rownames <- robust_cov_rownames
     
     # Categorical interactions
     cat_interactions <- gsub("G[-]", "", interactions[-c(1,2)])
@@ -227,9 +348,9 @@ server <- function(input, output, session) {
       manhattan_box("mb_marginal_manhattan_plot")
   })
   
-  observeEvent(input$gwas_marginal, {
-    output$mb_marginal_manhattan_plot <- renderPlot({
-      plot_manhattan(data$df, data$x_breaks, data$color_map, "Marginal")
+  observeEvent(input$gwas_mb_marginal, {
+      output$mb_marginal_manhattan_plot <- renderPlot({
+        plot_manhattan(data$df, data$x_breaks, data$color_map, "Marginal", FALSE)
     })
   })
   
@@ -249,7 +370,7 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$gwas_marginal, {
+  observeEvent(input$gwas_mb_marginal, {
     output$mb_marginal_qq_plot <- renderPlot({
       ggplot(data$df, aes(x = P_Value_Marginal, y = P_Value_Marginal)) +
         
@@ -299,9 +420,9 @@ server <- function(input, output, session) {
     manhattan_box("mb_interaction_manhattan_plot")
   })
   
-  observeEvent(input$gwas_interaction, {
+  observeEvent(input$gwas_mb_interaction, {
     output$mb_interaction_manhattan_plot <- renderPlot({
-      plot_manhattan(data$df, data$x_breaks, data$color_map, "Interaction")
+      plot_manhattan(data$df, data$x_breaks, data$color_map, "Interaction", FALSE)
     })
   })
   
@@ -321,7 +442,7 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$gwas_interaction, {
+  observeEvent(input$gwas_mb_interaction, {
     output$mb_interaction_qq_plot <- renderPlot({
       ggplot(data$df, aes(x = P_Value_Interaction, y = P_Value_Interaction)) +
         
@@ -371,9 +492,9 @@ server <- function(input, output, session) {
     manhattan_box("mb_joint_manhattan_plot")
   })
   
-  observeEvent(input$gwas_joint, {
+  observeEvent(input$gwas_mb_joint, {
     output$mb_joint_manhattan_plot <- renderPlot({
-      plot_manhattan(data$df, data$x_breaks, data$color_map, "Joint")
+      plot_manhattan(data$df, data$x_breaks, data$color_map, "Joint", FALSE)
     })
   })
   
@@ -393,7 +514,7 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$gwas_joint, {
+  observeEvent(input$gwas_mb_joint, {
     output$mb_joint_qq_plot <- renderPlot({
       ggplot(data$df, aes(x = P_Value_Joint, y = P_Value_Joint)) +
         
@@ -434,6 +555,222 @@ server <- function(input, output, session) {
     })
     
     mb_ss_tables(output, "joint", data$mb_jnt_nearest_points, row, data$beta_columns, data$se_columns, data$int_colnames, data$covariances, data$cov_rownames)
+  })
+  
+  
+  # UI - RB - MARGINAL - 1 ----------------------------------------------------------
+  
+  output$rb_marginal_manhattan_box <- renderUI({
+    manhattan_box("rb_marginal_manhattan_plot")
+  })
+  
+  observeEvent(input$gwas_rb_marginal, {
+    output$rb_marginal_manhattan_plot <- renderPlot({
+      plot_manhattan(data$df, data$x_breaks, data$color_map, "Marginal", robust = TRUE)
+    })
+  })
+  
+  
+  # UI - RB - MARGINAL - 2 -------------------------------------------------------
+  
+  output$rb_marginal_qq_box <- renderUI({
+    box(
+      title = p("Quantile-Quantile Plot", style = 'font-size:21px;'),
+      status = "primary",
+      collapsible = FALSE,
+      solidHeader = FALSE,
+      width = 12,
+      withSpinner(
+        plotOutput("rb_marginal_qq_plot", height = 300)
+      )
+    )
+  })
+  
+  observeEvent(input$gwas_rb_marginal, {
+    output$rb_marginal_qq_plot <- renderPlot({
+      ggplot(data$df, aes(x = robust_P_Value_Marginal, y = robust_P_Value_Marginal)) +
+        
+        geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+        geom_point() +
+        theme(panel.background = element_blank(),
+              panel.grid       = element_line(color = "grey97"),
+              axis.line        = element_line(linewidth = 0.6)) +
+        ylab(expression(paste('Observed ', -log[10](italic(p))))) +
+        xlab(expression(paste('Expected ',-log[10](italic(p)))))
+    })
+  })
+  
+  
+  # UI - RB - MARGINAL - 3 -------------------------------------------------------
+  
+  observeEvent(input$rb_marginal_manhattan_plot_click, {
+    output$rb_marginal_variants_table <- renderUI({
+      variant_box("rb_marginal_manhattan_plot_table")
+    })
+    
+    data$rb_mrg_nearest_points <- nearPoints(data$df, input$rb_marginal_manhattan_plot_click,
+                                             xvar = "cumulative_pos", yvar = "robust_P_Value_Marginal")
+    
+    output$rb_marginal_manhattan_plot_table <- DT::renderDT({
+      variant_table(data$rb_mrg_nearest_points, data$var_colnames, data$cat_interactions)
+    })
+  })
+  
+  
+  # UI - RB - MARGINAL - 4 -------------------------------------------------------
+  
+  observeEvent(input$rb_marginal_manhattan_plot_table_rows_selected, {
+    row <- input$rb_marginal_manhattan_plot_table_rows_selected
+    
+    output$rb_marginal_ss_tables <- renderUI({
+      ss_box(data$rb_mrg_nearest_points$SNPID[row], "rb_marginal_manhattan_plot_table")
+    })
+    
+    rb_ss_tables(output, "marginal", data$rb_mrg_nearest_points, row, data$beta_columns, data$robust_se_columns, data$int_colnames, data$robust_covariances, data$robust_cov_rownames)
+  })
+  
+  
+  # UI - RB - INTERACTION - 1 ----------------------------------------------------------
+  
+  output$rb_interaction_manhattan_box <- renderUI({
+    manhattan_box("rb_interaction_manhattan_plot")
+  })
+  
+  observeEvent(input$gwas_rb_interaction, {
+    output$rb_interaction_manhattan_plot <- renderPlot({
+      plot_manhattan(data$df, data$x_breaks, data$color_map, "Interaction", robust = TRUE)
+    })
+  })
+  
+  
+  # UI - RB - INTERACTION - 2 -------------------------------------------------------
+  
+  output$rb_interaction_qq_box <- renderUI({
+    box(
+      title = p("Quantile-Quantile Plot", style = 'font-size:21px;'),
+      status = "primary",
+      collapsible = FALSE,
+      solidHeader = FALSE,
+      width = 12,
+      withSpinner(
+        plotOutput("rb_interaction_qq_plot", height = 300)
+      )
+    )
+  })
+  
+  observeEvent(input$gwas_rb_interaction, {
+    output$rb_interaction_qq_plot <- renderPlot({
+      ggplot(data$df, aes(x = robust_P_Value_Interaction, y = robust_P_Value_Interaction)) +
+        
+        geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+        geom_point() +
+        theme(panel.background = element_blank(),
+              panel.grid       = element_line(color = "grey97"),
+              axis.line        = element_line(linewidth = 0.6)) +
+        ylab(expression(paste('Observed ', -log[10](italic(p))))) +
+        xlab(expression(paste('Expected ',-log[10](italic(p)))))
+    })
+  })
+  
+  
+  # UI - RB - INTERACTION - 3 -------------------------------------------------------
+  
+  observeEvent(input$rb_interaction_manhattan_plot_click, {
+    output$rb_interaction_variants_table <- renderUI({
+      variant_box("rb_interaction_manhattan_plot_table")
+    })
+    
+    data$rb_int_nearest_points <- nearPoints(data$df, input$rb_interaction_manhattan_plot_click,
+                                             xvar = "cumulative_pos", yvar = "robust_P_Value_Interaction")
+    
+    output$rb_interaction_manhattan_plot_table <- DT::renderDT({
+      variant_table(data$rb_int_nearest_points, data$var_colnames, data$cat_interactions)
+    })
+  })
+  
+  
+  # UI - RB - INTERACTION - 4 -------------------------------------------------------
+  
+  observeEvent(input$rb_interaction_manhattan_plot_table_rows_selected, {
+    row <- input$rb_interaction_manhattan_plot_table_rows_selected
+    
+    output$rb_interaction_ss_tables <- renderUI({
+      ss_box(data$rb_int_nearest_points$SNPID[row], "rb_interaction_manhattan_plot_table")
+    })
+    
+    rb_ss_tables(output, "interaction", data$rb_int_nearest_points, row, data$beta_columns, data$robust_se_columns, data$int_colnames, data$robust_covariances, data$robust_cov_rownames)
+  })
+  
+  
+  # UI - RB - JOINT - 1 ----------------------------------------------------------
+  
+  output$rb_joint_manhattan_box <- renderUI({
+    manhattan_box("rb_joint_manhattan_plot")
+  })
+  
+  observeEvent(input$gwas_rb_joint, {
+    output$rb_joint_manhattan_plot <- renderPlot({
+      plot_manhattan(data$df, data$x_breaks, data$color_map, "Joint", robust = TRUE)
+    })
+  })
+  
+  
+  # UI - RB - JOINT - 2 -------------------------------------------------------
+  
+  output$rb_joint_qq_box <- renderUI({
+    box(
+      title = p("Quantile-Quantile Plot", style = 'font-size:21px;'),
+      status = "primary",
+      collapsible = FALSE,
+      solidHeader = FALSE,
+      width = 12,
+      withSpinner(
+        plotOutput("rb_joint_qq_plot", height = 300)
+      )
+    )
+  })
+  
+  observeEvent(input$gwas_rb_joint, {
+    output$rb_joint_qq_plot <- renderPlot({
+      ggplot(data$df, aes(x = P_Value_Joint, y = P_Value_Joint)) +
+        
+        geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+        geom_point() +
+        theme(panel.background = element_blank(),
+              panel.grid       = element_line(color = "grey97"),
+              axis.line        = element_line(linewidth = 0.6)) +
+        ylab(expression(paste('Observed ', -log[10](italic(p))))) +
+        xlab(expression(paste('Expected ',-log[10](italic(p)))))
+    })
+  })
+  
+  
+  # UI - RB - JOINT - 3 -------------------------------------------------------
+  
+  observeEvent(input$rb_joint_manhattan_plot_click, {
+    output$rb_joint_variants_table <- renderUI({
+      variant_box("rb_joint_manhattan_plot_table")
+    })
+    
+    data$rb_jnt_nearest_points <- nearPoints(data$df, input$rb_joint_manhattan_plot_click,
+                                             xvar = "cumulative_pos", yvar = "robust_P_Value_Joint")
+    
+    output$rb_joint_manhattan_plot_table <- DT::renderDT({
+      variant_table(data$rb_jnt_nearest_points, data$var_colnames, data$cat_interactions)
+    })
+  })
+  
+  
+  # UI - RB - JOINT - 4 -------------------------------------------------------
+  
+  observeEvent(input$rb_joint_manhattan_plot_table_rows_selected, {
+    row <- input$rb_joint_manhattan_plot_table_rows_selected
+    
+    output$rb_joint_ss_tables <- renderUI({
+      ss_box(data$rb_jnt_nearest_points$SNPID[row], "rb_joint_manhattan_plot_table")
+    })
+    
+    rb_ss_tables(output, "joint", data$rb_jnt_nearest_points, row, data$beta_columns, data$robust_se_columns, data$int_colnames, data$robust_covariances, data$robust_cov_rownames)
   })
 }
   

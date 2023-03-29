@@ -1,18 +1,15 @@
-library(modules)
-CONSTS <- use("constants.R")
-
 ui <- dashboardPage(
   # HEADER ------------------------------------------------------------------
   
   dashboardHeader(
     # App title visible in browser tab
-    title = CONSTS$APP_TITLE,
+    title = "iGEM",
     # App title visible
-    tags$li(class = "dropdown title", tags$h1(CONSTS$APP_TITLE)),
+    tags$li(class = "dropdown title", tags$h1("iGEM")),
     # App current version
-    tags$li(class = "dropdown version", tags$p(CONSTS$APP_VERSION)),
+    tags$li(class = "dropdown version", tags$p("1.0.0")),
     # App time range
-    tags$li(class = "dropdown time-range", tags$p(CONSTS$APP_TIME_RANGE))
+    tags$li(class = "dropdown time-range", tags$p(""))
   ),
   
   # SIDEBAR -----------------------------------------------------------------
@@ -53,13 +50,13 @@ ui <- dashboardPage(
       )
     ),
 
-    tags$head(tags$style('.btn-default{ margin-left: 15px;}')),  # add the spacing,
+    tags$head(tags$style('.btn-default{ margin-left: -3px;border-radius: 5px; border: 2px solid black;}')),  # add the spacing,
     fluidRow(
         id = "gwas_panel",
         fluidRow(
           column(
             width = 12,
-            style = 'padding-left:28px; padding-right:0px; padding-top:10px; padding-bottom:0px',
+            style = 'padding-left:43px; padding-right:0px; padding-top:11px; padding-bottom:0px',
             bsButton("gwas_marginal",
                      label = "MARGINAL",
                      style = "default"),
@@ -70,13 +67,18 @@ ui <- dashboardPage(
                      label = "JOINT",
                      style = "default"),
           ),
+          test_panel("marginal"),
+          test_panel("interaction"),
+          test_panel("joint")
         ),
         br()
-    )
-    ,
-    fluid_design("gwas_mb_marginal_panel", "mb", "marginal"),
-    fluid_design("gwas_mb_interaction_panel", "mb", "interaction"),
-    fluid_design("gwas_mb_joint_panel", "mb", "joint"),
+    ),
+    fluid_design("mb", "marginal"),
+    fluid_design("mb", "interaction"),
+    fluid_design("mb", "joint"),
+    fluid_design("rb", "marginal"),
+    fluid_design("rb", "interaction"),
+    fluid_design("rb", "joint"),
     br(),
     br(),
     br(),

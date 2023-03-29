@@ -17,9 +17,9 @@ chrom_lengths_hg38=c("1"  = 248956422, "2"  = 242193529, "3"  = 198295559,
 
 # FLUID DESIGN FUNCTION ---------------------------------------------------
 
-fluid_design <- function(id, test, model) {
+fluid_design <- function(test, model) {
   fluidRow(
-    id = id,
+    id = paste0("gwas_", test, "_", model, "_panel"),
     div(
       column(
         width = 8,
@@ -42,6 +42,24 @@ fluid_design <- function(id, test, model) {
   )
 }
 
+test_panel <- function(model) {
+  fluidRow(
+    id = paste0("gwas_", model, "_panel"),
+    fluidRow(
+      column(
+        width = 12,
+        style = 'padding-left:73px; padding-right:0px; padding-top:0px; padding-bottom:0px',
+        bsButton(paste0("gwas_mb_", model),
+                 label = "MODEL-BASED",
+                 style = "default"),
+        bsButton(paste0("gwas_rb_", model),
+                 label = "ROBUST",
+                 style = "default")
+      ),
+    ),
+    br()
+  )
+}
 
 manhattan_box <- function(plotOutputId) {
   box(
@@ -71,8 +89,8 @@ variant_box <- function(tableOutputId) {
   )
 }
 
-plot_manhattan <- function(df, x_breaks, color_map, test) {
-  pcol <- paste0("P_Value_", test)
+plot_manhattan <- function(df, x_breaks, color_map, test, robust) {
+  pcol <- ifelse(robust, paste0("robust_", paste0("P_Value_", test)), paste0("P_Value_", test))
   y.max <- floor(max(df[,pcol])) + 5
   colnames(df)[which(colnames(df) == pcol)] <- "PV"
   
@@ -145,7 +163,7 @@ mb_ss_tables <- function(output, test, df, row, beta_columns, se_columns, int_co
     DT::datatable(
       beta_se,
       colnames = int_colnames,
-      rownames = c("Coefficients", "Std. Errors"),
+      rownames = c("Coefficients", "SE"),
       style = "bootstrap",
       selection = 'none',
       caption = "Table 1. Coefficient Estimates and Standard Errors",
@@ -166,6 +184,7 @@ mb_ss_tables <- function(output, test, df, row, beta_columns, se_columns, int_co
       rownames = FALSE,
       style = "bootstrap",
       selection = 'none',
+      escape = FALSE,
       caption = "Table 2. Model-based Covariances",
       options = list(
         dom = 't',
@@ -187,6 +206,72 @@ mb_ss_tables <- function(output, test, df, row, beta_columns, se_columns, int_co
       style = "bootstrap",
       selection = 'none',
       caption = "Table 3. Model-based P-Values",
+      options = list(
+        dom = 't',
+        pageLength = 1,
+        scrollX = TRUE,
+        columnDefs = list(list(width = '150px', targets = "_all", className = "dt-center"))
+      )
+    )
+  })
+}
+
+
+rb_ss_tables <- function(output, test, df, row, beta_columns, se_columns, int_colnames, covariances, cov_rownames) {
+  beta_se <- list()
+  beta_se[["beta"]] <- df[row, beta_columns, drop = F]
+  beta_se[["se"]] <- df[row, se_columns, drop = F]
+  beta_se <- rbindlist(beta_se, use.names = FALSE)
+  beta_se <- signif(beta_se, digits = 6)
+  output[[paste0("rb_", test, "_manhattan_plot_table2")]] <- DT::renderDT({
+    DT::datatable(
+      beta_se,
+      colnames = int_colnames,
+      rownames = c("Coefficients", "SE<sub>R</sub>"),
+      style = "bootstrap",
+      selection = 'none',
+      escape = FALSE,
+      caption = "Table 1. Coefficient Estimates and Robust Standard Errors",
+      options = list(
+        dom = 't',
+        pageLength = 2,
+        scrollX = TRUE,
+        columnDefs = list(list(width = '300px', targets = "_all", className = "dt-center"))
+      )
+    )
+  })
+  
+  covs <- cbind(cov_rownames, c(df[row, covariances, drop = T]))
+  output[[paste0("rb_", test, "_manhattan_plot_table3")]] <- DT::renderDT({
+    DT::datatable(
+      covs,
+      colnames = c("", "Covariances"),
+      rownames = FALSE,
+      style = "bootstrap",
+      selection = 'none',
+      escape = FALSE,
+      caption = "Table 2. Robust Covariances",
+      options = list(
+        dom = 't',
+        scrollX = TRUE,
+        scrollY = "250px",
+        pageLength = 1000,
+        columnDefs = list(list(width = '150px', targets = "_all", className = "dt-center"))
+      )
+    )
+  })
+  
+  pvals <- df[row, c("robust_P_Value_Marginal", "robust_P_Value_Interaction", "robust_P_Value_Joint")]
+  pvals <- signif(10^-pvals, digits = 6)
+  output[[paste0("rb_", test, "_manhattan_plot_table4")]] <- DT::renderDT({
+    DT::datatable(
+      pvals,
+      rownames = "P-Values<sub>R</sub>",
+      colnames = c("Marginal", "Interaction", "Joint"),
+      style = "bootstrap",
+      selection = 'none',
+      caption = "Table 3. Robust P-Values",
+      escape = FALSE,
       options = list(
         dom = 't',
         pageLength = 1,
