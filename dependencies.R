@@ -14,14 +14,14 @@ if (length(new.packages)) {
 
 rm(new.packages)
 
-library(AMR)
+library(gridlayout)
+library(bslib)
+library(modules)
 library(data.table)
 library(DT)
 library(ggridges)
 library(lubridate)
 library(plotly)
-library(qicharts2)
-library(rintrojs)
 library(shiny)
 library(shinyBS)
 library(shinycssloaders)

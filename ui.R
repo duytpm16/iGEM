@@ -34,13 +34,12 @@ ui <- dashboardPage(
         href = "radar_style.css")
     ),
     
-    useShinyjs(),
-    
     # MAIN BODY ---------------------------------------------------------------
     
     fluidRow(
       column(
           width = 12,
+          style = 'padding-left:28px; padding-right:0px; padding-top:10px; padding-bottom:0px',
           bsButton("gwas", 
                    label = "GWAS RESULTS", 
                    icon = icon("chart-bar"), 
@@ -53,44 +52,54 @@ ui <- dashboardPage(
     ),
     
     fluid_design("diagnostics_panel", "box5", "box6", "box7", "box8"),
-    
+    tags$head(tags$style('.btn-default{ margin-left: 15px;}')),  # add the spacing,
     fluidRow(
-      div(
         id = "gwas_panel",
         fluidRow(
           column(
             width = 12,
+            style = 'padding-left:28px; padding-right:0px; padding-top:10px; padding-bottom:0px',
             bsButton("gwas_marginal",
-                     label = "Marginal",
+                     label = "MARGINAL",
                      style = "default"),
             bsButton("gwas_interaction",
-                     label = "Interaction",
+                     label = "INTERACTION",
                      style = "default"),
             bsButton("gwas_joint",
-                     label = "Joint",
+                     label = "JOINT",
                      style = "default"),
           ),
         ),
         br()
-      )
     )
     ,
     fluidRow(
-      div(
         id = "gwas_marginal_panel",
         column(
           width = 8,
           uiOutput("box_pat")
         ),
         column(
-          width = 6,
+          width  = 4,
+          offset = 0, 
+          style  = 'padding-left:0px; padding-right:0px; padding-top:0px; padding-bottom:0px',
           uiOutput("box_pat2")
-        ),
-        column(
-          width = 6,
-          uiOutput("box_year")
         )
-      )
-    )
+    ),
+    br(),
+    fluidRow(
+        id = "gwas_marginal_ss_panel",
+        fluidRow(
+          id = "gwas_marginal_tables",
+          column(width  = 6,
+                 offset = 0, 
+                 style  = 'padding-left:30px; padding-right:0px; padding-top:0px; padding-bottom:0px',
+                 uiOutput("box_pat3")),
+          column(width = 6,
+                 uiOutput("box_pat4")),          
+        )
+    ),
+    br(),
+    br(),
   )
 )

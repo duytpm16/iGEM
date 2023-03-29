@@ -160,7 +160,60 @@ server <- function(input, output, session) {
   # READ INPUT FILE ------------------------------------------------------------
   data <- reactiveValues(df = NULL)
   observeEvent(input$inputFile, {
-    df <- as.data.frame(fread(input$inputFile$datapath, sep = "\t", header = T))
+    # Read File
+    df <- fread(input$inputFile$datapath, sep = "\t", header = T, data.table = F)
+    
+    # Convert P-values
+    df$P_Value_Marginal    <- -log10(df$P_Value_Marginal)
+    df$P_Value_Interaction <- -log10(df$P_Value_Interaction)
+    df$P_Value_Joint       <- -log10(df$P_Value_Joint)
+    df$robust_P_Value_Marginal    <- -log10(df$robust_P_Value_Marginal)
+    df$robust_P_Value_Interaction <- -log10(df$robust_P_Value_Interaction)
+    df$robust_P_Value_Joint       <- -log10(df$robust_P_Value_Joint)
+    
+    # Get interactions including marginal columns
+    interactions <- c("Beta_Marginal", "Beta_G", colnames(df)[grepl("^Beta_G-", colnames(df))])
+    interactions <- gsub("Beta_", "", interactions)
+    int_colnames <- c("Marginal", "Main", gsub("[-]", " x ", interactions[grepl("^G[-]", interactions)]))
+    data$beta_columns <- paste0("Beta_", interactions[-1])
+    data$se_columns   <- paste0("SE_Beta_", interactions[-1])
+    data$int_colnames <- int_colnames
+    
+    covariances  <- unlist(lapply(combn(interactions[-1], 2, simplify = FALSE), FUN = function(x) {paste0(x[1], "_", x[2])}))
+    cov_rownames <- unlist(lapply(combn(int_colnames[-1], 2, simplify = FALSE), FUN = function(x) {paste0(x[1], "_", x[2])}))
+    cov_rownames <- gsub("[_]", ", ", paste0("cov(", cov_rownames, ")"))
+    data$covariances  <- paste0("Cov_Beta_", covariances)
+    data$cov_rownames <- cov_rownames
+    
+    # Categorical interactions
+    cat_interactions <- gsub("G[-]", "", interactions[-c(1,2)])
+    cat_interactions <- colnames(df)[grepl(paste0("^N_", cat_interactions), colnames(df))]
+    cat_interactions <- gsub("N[_]", "", cat_interactions)
+    cat_n  <- paste0("<center>N<br>", gsub("[_]", " - ", cat_interactions), "</center>")
+    cat_af <- paste0("<center>AF<br>", gsub("[_]", " - ", cat_interactions), "</center>")
+    cat_colnames <- unlist(lapply(1:length(cat_n), FUN = function(x) c(cat_n[x], cat_af[x])))
+    var_colnames <- c("SNP ID", "CHROM", "POS", "<center>NON-EFFECT<br>Allele</center>", "<center>EFFECT<br>ALLELE</center>", "<center>N<br>SAMPLES</center>", "AF", cat_colnames)
+    
+    cat_n  <- paste0("N_", cat_interactions)
+    cat_af <- paste0("AF_", cat_interactions)
+    cat_interactions <- unlist(lapply(1:length(cat_n), FUN = function(x) c(cat_n[x], cat_af[x])))
+    data$cat_interactions <- cat_interactions
+    data$var_colnames <- var_colnames
+    
+    # Manhattan plot data
+    chrom_lengths <- chrom_lengths_hg38[extract_which_chr(df)]
+    df <- add_cumulative_pos(df, chrom_lengths)
+    df <- add_color(df, color1 = "black", color2 = "grey")
+    
+    x_breaks <- get_x_breaks(chrom_lengths_hg38)
+    names(x_breaks)[20]="20"
+    names(x_breaks)[22]="22"
+    data$x_breaks <- x_breaks
+    
+    color_map <- unique(df$color)
+    names(color_map) <- unique(df$color)
+    data$color_map <- color_map
+    
     data$df <- df
   })
   
@@ -168,176 +221,223 @@ server <- function(input, output, session) {
   
   output$box_pat <- renderUI({
       box(
-        title = "Manhattan Plot",
+        title = p("Manhattan Plot", style = 'font-size:21px;'),
         status = "primary",
         collapsible = FALSE,
         solidHeader = FALSE,
         width = 12,
         withSpinner(
-          plotlyOutput("mb_marginal_manhattan_plot", height = 400)
+          plotOutput("mb_marginal_manhattan_plot", height = 300,
+                     click = "mb_marginal_manhattan_plot_click")
         )
       )
   })
   
   observeEvent(input$gwas_marginal, {
-    
-    chrom_lengths <- chrom_lengths_hg38[extract_which_chr(data$df)]
-    data$df <- add_cumulative_pos(data$df, chrom_lengths)
-    data$df <- add_color(data$df, color1 = "black", color2 = "grey")
 
-    y.max <- floor(max(data$df$P_Value_Marginal)) + 2
+    y.max <- floor(max(data$df$P_Value_Marginal)) + 5
 
-    x_breaks=get_x_breaks(chrom_lengths_hg38)
-    names(x_breaks)[20]="20"
-    names(x_breaks)[22]="22"
-    color_map=unique(data$df$color)
-    names(color_map)=unique(data$df$color)
-
-
-    mhplot <- ggplot(data$df, aes(x=cumulative_pos, y=-log10(P_Value_Marginal), color=color)) +
+    mhplot <- ggplot(data$df, aes(x=cumulative_pos, y=P_Value_Marginal, color=color)) +
                 geom_point() +
                 ggtitle("") +
                 xlab("Chromosome") +
-                ylab("-log<sub>10</sub>(<i>p</i>)") +
+                ylab(expression(-log[10](italic(p)))) +
                 scale_x_continuous(expand = c(0.01,0),
-                                   breaks = x_breaks,
-                                   labels = names(x_breaks)) +
-                scale_y_continuous(expand = c(0.01,0)) +
-                scale_color_manual(values = color_map,
+                                   breaks = data$x_breaks,
+                                   labels = names(data$x_breaks)) +
+                scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max)) +
+                scale_color_manual(values = data$color_map,
                                    guide  = 'none') +
                 theme(panel.background = element_blank(),
                       panel.grid       = element_line(color = "grey97"),
                       axis.line        = element_line(linewidth = 0.6),
-                      axis.title       = element_text(size = 17, face = "bold"),
-                      axis.text        = element_text(size = 12, face = "bold"),
+                      axis.title       = element_text(size = 13),
+                      axis.text        = element_text(size = 11),
                       legend.position = "none")
-    output$mb_marginal_manhattan_plot <- renderPlotly({
+    output$mb_marginal_manhattan_plot <- renderPlot({
       mhplot
     })
   })
   
   
-  # # UI - PATIENTS - 2 -------------------------------------------------------
-  # 
-  # output$box_pat2 <- renderUI({
-  #   div(
-  #     style = "position: relative",
-  #     tabBox(
-  #       id = "box_pat2",
-  #       width = NULL,
-  #       height = 400,
-  #       tabPanel(
-  #         title = "Subspecialties - table",
-  #         htmlOutput("patients_total"),
-  #         withSpinner(
-  #           DT::dataTableOutput("table_pat_all"),
-  #           type = 4,
-  #           color = "#d33724",
-  #           size = 0.7
-  #         )
-  #       ),
-  #       tabPanel(
-  #         title = "Patient age",
-  #         div(
-  #           style = "position: absolute; left: 0.5em; bottom: 0.5em;",
-  #           dropdown(
-  #             radioGroupButtons(
-  #               inputId = "box_pat1.1",
-  #               label = "Select group", 
-  #               choiceNames = c("All", "Gender"),
-  #               choiceValues = c("all", "gender"), 
-  #               selected = "all", 
-  #               direction = "vertical"
-  #             ),
-  #             size = "xs",
-  #             icon = icon("gear", class = "opt"), 
-  #             up = TRUE
-  #           )
-  #         ),
-  #         div(
-  #           style = "position: absolute; left: 4em; bottom: 0.5em;",
-  #           dropdown(
-  #             downloadButton(outputId = "down_age_select", label = "Download plot"),
-  #             size = "xs",
-  #             icon = icon("download", class = "opt"), 
-  #             up = TRUE
-  #           )
-  #         ),
-  #         withSpinner(
-  #           plotOutput("plot_age_select", height = 300),
-  #           type = 4,
-  #           color = "#d33724",
-  #           size = 0.7
-  #         )
-  #       )
-  #     )
-  #   )
-  # })
-  # 
-  # output$patients_total <- renderText({
-  #   HTML(
-  #     paste("Total number of admissions:", 
-  #           strong(
-  #             unique(
-  #               paste(set_reac_1()$id, set_reac_1()$adm_id) %>% 
-  #                 length()
-  #             )
-  #           )
-  #     )
-  #   )
-  # })
-  # 
-  # 
-  # 
-  # # UI - PATIENTS - 3 -------------------------------------------------------
-  # 
-  # output$box_year <- renderUI({
-  #   div(
-  #     style = "position: relative",
-  #     tabBox(
-  #       id = "box_year",
-  #       width = NULL,
-  #       height = 400,
-  #       tabPanel(
-  #         title = "Number of patients per year",
-  #         div(
-  #           style = "position: absolute; left:0.5em; bottom: 0.5em;",
-  #           dropdown(
-  #             radioGroupButtons(
-  #               inputId = "box_year1",
-  #               label = "Select time period", 
-  #               choiceNames = c("Years", "Quarter", "Months"),
-  #               choiceValues = c("years", "yearquarter_adm", "yearmonth_adm"), 
-  #               selected = "years", 
-  #               direction = "vertical"
-  #             ),
-  #             size = "xs",
-  #             icon = icon("gear", class = "opt"), 
-  #             up = TRUE
-  #           )
-  #         ),
-  #         div(
-  #           style = "position: absolute; left: 4em; bottom: 0.5em;",
-  #           dropdown( 
-  #             downloadButton(outputId = "down_year_select", label = "Download plot"),
-  #             size = "xs",
-  #             icon = icon("download", class = "opt"), 
-  #             up = TRUE
-  #           )
-  #         ),
-  #         withSpinner(
-  #           plotOutput("plot_year_select", height = 300),
-  #           type = 4,
-  #           color = "#d33724",
-  #           size = 0.7
-  #         )
-  #       )
-  #     )
-  #   )
-  # })
-  # 
-  # 
-  # 
+  # UI - PATIENTS - 2 -------------------------------------------------------
+
+  output$box_pat2 <- renderUI({
+    box(
+      title = p("Quantile-Quantile Plot", style = 'font-size:21px;'),
+      status = "primary",
+      collapsible = FALSE,
+      solidHeader = FALSE,
+      width = 12,
+      withSpinner(
+        plotOutput("mb_marginal_qq_plot", height = 300)
+      )
+    )
+  })
+  
+  observeEvent(input$gwas_marginal, {
+    output$mb_marginal_qq_plot <- renderPlot({
+      ggplot(data$df, aes(x = P_Value_Marginal, y = P_Value_Marginal)) +
+        
+        geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+        geom_point() +
+        theme(panel.background = element_blank(),
+              panel.grid       = element_line(color = "grey97"),
+              axis.line        = element_line(linewidth = 0.6)) +
+        ylab(expression(paste('Observed ', -log[10](italic(p))))) +
+        xlab(expression(paste('Expected ',-log[10](italic(p)))))
+    })
+  })
+  
+
+  # UI - PATIENTS - 3 -------------------------------------------------------
+
+  observeEvent(input$mb_marginal_manhattan_plot_click, {
+    output$box_pat3 <- renderUI({
+      box(
+        title = p("Variants Table", style = 'font-size:21px;'),
+        status = "primary",
+        collapsible = FALSE,
+        solidHeader = FALSE,
+        width = 12,
+        withSpinner(
+          dataTableOutput("mb_marginal_manhattan_plot_table", height = 360)
+        )
+      )
+    })
+    
+    data$mb_mrg_nearest_points <- nearPoints(data$df, input$mb_marginal_manhattan_plot_click,
+                                             xvar = "cumulative_pos", yvar = "P_Value_Marginal")
+    
+    output$mb_marginal_manhattan_plot_table <- DT::renderDT({
+      DT::datatable(
+        data$mb_mrg_nearest_points[, c("SNPID", "CHR", "POS", "Non_Effect_Allele", "Effect_Allele", "N_Samples", "AF", data$cat_interactions)],
+        colnames = data$var_colnames,
+        rownames = FALSE,
+        style = "bootstrap",
+        selection = 'single',
+        escape = FALSE,
+        caption = "Select a state to examine it in more detail",
+        options = list(
+          dom = 'tp',
+          search = list(regex = TRUE, caseInsensitive = TRUE),
+          pageLength = 5,
+          ordering = TRUE,
+          stateSave = TRUE,
+          columnDefs = list(list(targets = "_all", className = "dt-center"))
+        )
+      )
+    })
+  })
+  
+  
+  # UI - PATIENTS - 4 -------------------------------------------------------
+  
+  observeEvent(input$mb_marginal_manhattan_plot_table_rows_selected, {
+    row <- input$mb_marginal_manhattan_plot_table_rows_selected
+    
+    
+    output$box_pat4 <- renderUI({
+      box(
+        title = p(data$mb_mrg_nearest_points$SNPID[row], style = 'font-size:21px;text-underline-position: under;text-decoration: underline;'),
+        status = "primary",
+        collapsible = FALSE,
+        solidHeader = FALSE,
+        width = 12,
+        grid_page(
+          layout = c(
+            "       400px   300px",
+            "175px  table2  table3",
+            "150px  table4  table3"
+          ),
+          grid_card(
+            "table2",
+            card_body(
+              dataTableOutput("mb_marginal_manhattan_plot_table2")
+            )
+          ),
+          grid_card(
+            "table3",
+            card_body(
+              dataTableOutput("mb_marginal_manhattan_plot_table3")
+            )
+          ),
+          grid_card(
+            "table4",
+            card_body(
+              dataTableOutput("mb_marginal_manhattan_plot_table4")
+            )
+          )
+        )
+      )
+    })
+    
+    
+    beta_se <- list()
+    beta_se[["beta"]] <- data$mb_mrg_nearest_points[row, data$beta_columns, drop = F]
+    beta_se[["se"]] <- data$mb_mrg_nearest_points[row, data$se_columns, drop = F]
+    beta_se <- rbindlist(beta_se, use.names = FALSE)
+    beta_se <- signif(beta_se, digits = 6)
+    output$mb_marginal_manhattan_plot_table2 <- DT::renderDT({
+      DT::datatable(
+        beta_se,
+        colnames = data$int_colnames,
+        rownames = c("Coefficients", "Std. Errors"),
+        style = "bootstrap",
+        selection = 'none',
+        caption = "Table 1. Coefficient Estimates and Standard Errors",
+        options = list(
+          dom = 't',
+          pageLength = 2,
+          scrollX = TRUE,
+          columnDefs = list(list(width = '300px', targets = "_all", className = "dt-center"))
+        )
+      )
+    })
+
+    print(data$covariances)
+    covs <- cbind(data$cov_rownames, c(data$mb_mrg_nearest_points[row, data$covariances, drop = T]))
+    print(covs)
+    output$mb_marginal_manhattan_plot_table3 <- DT::renderDT({
+      DT::datatable(
+        covs,
+        colnames = c("", "Covariances"),
+        rownames = FALSE,
+        style = "bootstrap",
+        selection = 'none',
+        caption = "Table 2. Model-based Covariances",
+        options = list(
+          dom = 't',
+          scrollX = TRUE,
+          scrollY = "auto",
+          columnDefs = list(list(width = '150px', targets = "_all", className = "dt-center"))
+        )
+      )
+    })
+
+    pvals <- data$mb_mrg_nearest_points[row, c("P_Value_Marginal", "P_Value_Interaction", "P_Value_Joint")]
+    pvals <- signif(10^-pvals, digits = 6)
+    output$mb_marginal_manhattan_plot_table4 <- DT::renderDT({
+      DT::datatable(
+        pvals,
+        rownames = "P-Values",
+        colnames = c("Marginal", "Interaction", "Joint"),
+        style = "bootstrap",
+        selection = 'none',
+        caption = "Table 3. Model-based P-Values",
+        options = list(
+          dom = 't',
+          pageLength = 1,
+          scrollX = TRUE,
+          columnDefs = list(list(width = '150px', targets = "_all", className = "dt-center"))
+        )
+      )
+    })
+    
+    
+    
+  })
+  
   # # UI - DIAGNOSTICS - 1 ------------------------------------------------------------------
   # 
   # output$box5 <- renderUI({
