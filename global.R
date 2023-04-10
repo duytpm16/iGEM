@@ -1,8 +1,6 @@
 # INSTALL DEPENDENCIES ----------------------------------------------------
 
 source('dependencies.R')
-# load all packages
-lapply(required_packages, require, character.only = TRUE)
 
 # https://genome.ucsc.edu/goldenpath/help/hg38.chrom.sizes
 chrom_lengths_hg38=c("1"  = 248956422, "2"  = 242193529, "3"  = 198295559,
@@ -84,7 +82,7 @@ variant_box <- function(tableOutputId) {
     solidHeader = FALSE,
     width = 12,
     withSpinner(
-      dataTableOutput(tableOutputId, height = 350)
+      dataTableOutput(tableOutputId, height = 400)
     )
   )
 }
@@ -280,4 +278,98 @@ rb_ss_tables <- function(output, test, df, row, beta_columns, se_columns, int_co
       )
     )
   })
+}
+
+
+
+
+reduce_data <- function(df, pcol) {
+  ms     <- df[,c("CHR", "cumulative_pos", pcol, "color")]
+  colnames(ms) <- c("CHR", "BP", "LOGP", "color")
+  numc <- length(sort(unique(ms$CHR)));
+  # part 3: reduce size for fast plotting --------------------------------------------------------------------------------------------------------------------------------------------
+  quants <- c(0,0.002,0.5,0.998,1); 
+  quants <- quantile(ms$LOGP, quants); # minimum, 0.2th percentile, median, 99.8th percentile and maximum are being calculated
+  right  <- (quants[5] - quants[4])/(quants[4] - quants[3]); # measure of significance of right tail
+  left   <- (quants[1] - quants[2])/(quants[2] - quants[3]); # measure of significance of left tail
+  if (nrow(ms) < 1E5) { #if there are lest than 100k rows then full data is rounded to 3 digits
+    digs <- 3; 
+    ms$LOGP <- round(ms$LOGP, digits=digs); 
+    ms$BP   <- round(ms$BP,   digits=digs); 
+    f  <- duplicated(ms); 
+    ms <-ms[!f,]; 
+    rm(f);
+  }
+  else { # round lower and upper parts separately
+    if (right>0.1) { # significant right tail
+      if (left>0.1) { # significant left tail
+        f1 <- ms$LOGP <= quants[4] & ms$LOGP >= quants[2];
+        digs1 <- 2; 
+        digs2 <- 3; 
+        digs  <- 0*f1 + digs2; 
+        digs[f1] <- digs1;
+        ms$LOGP  <- round(ms$LOGP, digits=digs); 
+        ms$BP    <- round(ms$BP,  digits=digs);
+        rm(digs);
+        f=NULL; #store vector of duplicated rows
+        for (i in 1:numc) {
+          m1 <- ms[ms$C==i, c("BP","LOGP")]; # subset by chromosome for smaller memory
+          f1 <- duplicated(m1);
+          f <- c(f,f1);
+          rm(f1, m1);
+        }
+        ms <- ms[!f,]; 
+        rm(f);
+      }
+      else { # insignificant left tail
+        f1 <- ms$LOGP <= quants[4];
+        digs1 <- 2; 
+        digs2 <- 3; 
+        digs  <- 0*f1 + digs2; 
+        digs[f1] <- digs1;
+        ms$LOGP  <- round(ms$LOGP, digits=digs); 
+        ms$BP    <- round(ms$BP,   digits=digs);
+        rm(digs);
+        f=NULL; #store vector of duplicated rows
+        for (i in 1:numc) {
+          m1 <- ms[ms$C==i, c("BP","LOGP")]; # subset by chromosome for smaller memory
+          f1 <- duplicated(m1);
+          f  <- c(f,f1);
+          rm(f1, m1);
+        }
+        ms=ms[!f, ]; 
+        rm(f);
+      }
+    }
+    else { # insignificant right tail
+      if (left>0.1) { # significant left tail
+        f1 <- ms$LOGP >= quants[2];
+        digs1 <- 2; 
+        digs2 <- 3; 
+        digs  <- 0*f1 + digs2; 
+        digs[f1] <- digs1;
+        ms$LOGP <- round(ms$LOGP, digits=digs); 
+        ms$BP   <- round(ms$BP,   digits=digs);
+        rm(digs);
+        f=NULL; #store vector of duplicated rows
+        for (i in 1:numc) {
+          m1 <- ms[ms$C==i,c("BP","LOGP")]; # subset by chromosome for smaller memory
+          f1 <- duplicated(m1);
+          f  <- c(f,f1);
+          rm(f1, m1);
+        }
+        ms=ms[!f,]; 
+        rm(f);
+      }
+      else { # insignificant left tail
+        digs <- 3;
+        ms$LOGP <- round(ms$LOGP, digits=digs); 
+        ms$BP   <- round(ms$BP,   digits=digs); 
+        f  <- duplicated(ms); 
+        ms <- ms[!f,]; rm(f);# as there is no significant tail full data is rounded to 3 digits
+      }
+    }
+  }
+  
+  return(ms)
 }

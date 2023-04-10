@@ -1,3 +1,5 @@
+options(shiny.maxRequestSize=6000*1024^2) 
+
 ui <- dashboardPage(
   # HEADER ------------------------------------------------------------------
   
@@ -42,10 +44,6 @@ ui <- dashboardPage(
           bsButton("gwas", 
                    label = "GWAS RESULTS", 
                    icon = icon("chart-bar"), 
-                   style = "success"),
-          bsButton("diagnostics", 
-                   label = "DIAGNOSTICS", 
-                   icon = icon("flask", class = "flask-box"), 
                    style = "success")
       )
     ),
@@ -53,7 +51,6 @@ ui <- dashboardPage(
     tags$head(tags$style('.btn-default{ margin-left: -3px;border-radius: 5px; border: 2px solid black;}')),  # add the spacing,
     fluidRow(
         id = "gwas_panel",
-        fluidRow(
           column(
             width = 12,
             style = 'padding-left:43px; padding-right:0px; padding-top:11px; padding-bottom:0px',
@@ -67,18 +64,17 @@ ui <- dashboardPage(
                      label = "JOINT",
                      style = "default"),
           ),
-          test_panel("marginal"),
-          test_panel("interaction"),
-          test_panel("joint")
-        ),
+          hidden(test_panel("marginal")),
+          hidden(test_panel("interaction")),
+          hidden(test_panel("joint")),
         br()
     ),
-    fluid_design("mb", "marginal"),
-    fluid_design("mb", "interaction"),
-    fluid_design("mb", "joint"),
-    fluid_design("rb", "marginal"),
-    fluid_design("rb", "interaction"),
-    fluid_design("rb", "joint"),
+    hidden(fluid_design("mb", "marginal")),
+    hidden(fluid_design("mb", "interaction")),
+    hidden(fluid_design("mb", "joint")),
+    hidden(fluid_design("rb", "marginal")),
+    hidden(fluid_design("rb", "interaction")),
+    hidden(fluid_design("rb", "joint")),
     br(),
     br(),
     br(),

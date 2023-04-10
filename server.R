@@ -53,7 +53,7 @@ server <- function(input, output, session) {
   # use action buttons as tab selectors
     update_all <- function(x) {
     updateSelectInput(session, "tab",
-                      choices = c("", "GWAS", "Diagnostics", "MARGINAL", "INTERACTION", "JOINT"),
+                      choices = c("", "GWAS", "MARGINAL", "INTERACTION", "JOINT"),
                       label = "",
                       selected = x
     )
@@ -70,9 +70,6 @@ server <- function(input, output, session) {
   })
   observeEvent(input$gwas_joint, {
     update_all("JOINT")
-  })
-  observeEvent(input$diagnostics, {
-    update_all("Diagnostics")
   })
   
   # update confirm button
@@ -96,6 +93,9 @@ server <- function(input, output, session) {
   
   observeEvent("", {
     show("gwas_panel")
+    show("gwas_marginal")
+    show("gwas_interaction")
+    show("gwas_joint")
     hide("gwas_marginal_panel")
     hide("gwas_interaction_panel")
     hide("gwas_joint_panel")
@@ -123,10 +123,6 @@ server <- function(input, output, session) {
     hide("diagnostics_panel")
   })
   
-  observeEvent(input$diagnostics, {
-    show("diagnostics_panel")
-    hide("gwas_panel")
-  })
   
   observeEvent(input$gwas_marginal, {
     show("gwas_panel")
@@ -312,7 +308,7 @@ server <- function(input, output, session) {
     
     # Categorical interactions
     cat_interactions <- gsub("G[-]", "", interactions[-c(1,2)])
-    cat_interactions <- colnames(df)[grepl(paste0("^N_", cat_interactions), colnames(df))]
+    cat_interactions <- colnames(df)[grepl(paste0("^N[_]", cat_interactions), colnames(df))]
     cat_interactions <- gsub("N[_]", "", cat_interactions)
     cat_n  <- paste0("<center>N<br>", gsub("[_]", " - ", cat_interactions), "</center>")
     cat_af <- paste0("<center>AF<br>", gsub("[_]", " - ", cat_interactions), "</center>")
@@ -349,8 +345,10 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$gwas_mb_marginal, {
+      plot_df <- reduce_data(data$df, "P_Value_Marginal")
+      colnames(plot_df) <- c("CHR", "cumulative_pos", "P_Value_Marginal", "color")
       output$mb_marginal_manhattan_plot <- renderPlot({
-        plot_manhattan(data$df, data$x_breaks, data$color_map, "Marginal", FALSE)
+        plot_manhattan(plot_df, data$x_breaks, data$color_map, "Marginal", FALSE)
     })
   })
   
@@ -372,7 +370,8 @@ server <- function(input, output, session) {
   
   observeEvent(input$gwas_mb_marginal, {
     output$mb_marginal_qq_plot <- renderPlot({
-      ggplot(data$df, aes(x = P_Value_Marginal, y = P_Value_Marginal)) +
+      qq_df <- drop_dense(sort(data$df$P_Value_Marginal, decreasing = T), -log10(stats::ppoints(length(data$df))))
+      ggplot(qq_df, aes(x = y, y = x)) +
         
         geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
         geom_point() +
@@ -444,7 +443,8 @@ server <- function(input, output, session) {
   
   observeEvent(input$gwas_mb_interaction, {
     output$mb_interaction_qq_plot <- renderPlot({
-      ggplot(data$df, aes(x = P_Value_Interaction, y = P_Value_Interaction)) +
+      qq_df <- drop_dense(sort(data$df$P_Value_Interaction, decreasing = T), -log10(stats::ppoints(length(data$df))))
+      ggplot(qq_df, aes(x = y, y = x)) +
         
         geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
         geom_point() +
@@ -516,8 +516,8 @@ server <- function(input, output, session) {
   
   observeEvent(input$gwas_mb_joint, {
     output$mb_joint_qq_plot <- renderPlot({
-      ggplot(data$df, aes(x = P_Value_Joint, y = P_Value_Joint)) +
-        
+      qq_df <- drop_dense(sort(data$df$P_Value_Joint, decreasing = T), -log10(stats::ppoints(length(data$df))))
+      ggplot(qq_df, aes(x = y, y = x)) +
         geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
         geom_point() +
         theme(panel.background = element_blank(),
@@ -588,8 +588,8 @@ server <- function(input, output, session) {
   
   observeEvent(input$gwas_rb_marginal, {
     output$rb_marginal_qq_plot <- renderPlot({
-      ggplot(data$df, aes(x = robust_P_Value_Marginal, y = robust_P_Value_Marginal)) +
-        
+      qq_df <- drop_dense(sort(data$df$robust_P_Value_Marginal, decreasing = T), -log10(stats::ppoints(length(data$df))))
+      ggplot(qq_df, aes(x = y, y = x)) +
         geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
         geom_point() +
         theme(panel.background = element_blank(),
@@ -660,8 +660,8 @@ server <- function(input, output, session) {
   
   observeEvent(input$gwas_rb_interaction, {
     output$rb_interaction_qq_plot <- renderPlot({
-      ggplot(data$df, aes(x = robust_P_Value_Interaction, y = robust_P_Value_Interaction)) +
-        
+      qq_df <- drop_dense(sort(data$df$robust_P_Value_Interaction, decreasing = T), -log10(stats::ppoints(length(data$df))))
+      ggplot(qq_df, aes(x = y, y = x)) +
         geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
         geom_point() +
         theme(panel.background = element_blank(),
@@ -732,8 +732,8 @@ server <- function(input, output, session) {
   
   observeEvent(input$gwas_rb_joint, {
     output$rb_joint_qq_plot <- renderPlot({
-      ggplot(data$df, aes(x = P_Value_Joint, y = P_Value_Joint)) +
-        
+      qq_df <- drop_dense(sort(data$df$robust_P_Value_Joint, decreasing = T), -log10(stats::ppoints(length(data$df))))
+      ggplot(qq_df, aes(x = y, y = x)) +
         geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
         geom_point() +
         theme(panel.background = element_blank(),
