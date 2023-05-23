@@ -40,41 +40,43 @@ ui <- dashboardPage(
     fluidRow(
       column(
           width = 12,
-          style = 'padding-left:28px; padding-right:0px; padding-top:10px; padding-bottom:0px',
+          style = 'padding-left:0px; padding-right:0px; padding-top:10px; padding-bottom:0px',
           bsButton("gwas", 
-                   label = "GWAS RESULTS", 
-                   icon = icon("chart-bar"), 
-                   style = "success")
+                   label = "GWIS", 
+                   icon  = icon("chart-column"))
       )
     ),
 
     tags$head(tags$style('.btn-default{ margin-left: -3px;border-radius: 5px; border: 2px solid black;}')),  # add the spacing,
     fluidRow(
         id = "gwas_panel",
-          column(
+        column(
             width = 12,
-            style = 'padding-left:43px; padding-right:0px; padding-top:11px; padding-bottom:0px',
-            bsButton("gwas_marginal",
-                     label = "MARGINAL",
-                     style = "default"),
-            bsButton("gwas_interaction",
-                     label = "INTERACTION",
-                     style = "default"),
-            bsButton("gwas_joint",
-                     label = "JOINT",
-                     style = "default"),
-          ),
-          hidden(test_panel("marginal")),
-          hidden(test_panel("interaction")),
-          hidden(test_panel("joint")),
-        br()
+            style = 'padding-left:0px; padding-right:0px; padding-top:11px; padding-bottom:0px',
+            selectInput(inputId = "gwis_choice",
+                        label   = "Select test:",
+                        choices = c("Joint"       = "joint",
+                                    "Interaction" = "interaction",
+                                    "Marginal"    = "marginal"))
+        ),
+        column(
+            width = 12,
+            style = 'padding-left:0px; padding-right:0px; padding-top:11px; padding-bottom:0px',
+            selectInput(inputId = "se_choice",
+                        label   = "Select standard errors:",
+                        choices = c("Model-based" = "modelbased",
+                                    "Robust"      = "robust"))
+        ),
+        br(),
     ),
+    
     hidden(fluid_design("mb", "marginal")),
-    hidden(fluid_design("mb", "interaction")),
-    hidden(fluid_design("mb", "joint")),
     hidden(fluid_design("rb", "marginal")),
+    hidden(fluid_design("mb", "interaction")),
     hidden(fluid_design("rb", "interaction")),
+    hidden(fluid_design("mb", "joint")),
     hidden(fluid_design("rb", "joint")),
+    
     br(),
     br(),
     br(),

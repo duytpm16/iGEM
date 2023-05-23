@@ -1,0 +1,12 @@
+# LIST OF REQUIRED PACKAGES -----------------------------------------------
+library(ggplot2)
+library(modules)
+library(data.table)
+library(DT)
+library(shiny)
+library(shinyBS)
+library(shinycssloaders)
+library(shinydashboard)
+library(shinyjs)
+library(shinyWidgets)
+library(fastqq)
