@@ -113,7 +113,7 @@ ssTable_box <- function(boxTitle, tableOutputPrefix) {
 }
 
 
-plot_manhattan <- function(df, x_breaks, color_map, test, robust) {
+plot_manhattan <- function(df, x_breaks, color_map, sig_threshold, sig_color, test, robust) {
   if (is.null(df)) {
     return(NULL)
   }
@@ -123,6 +123,7 @@ plot_manhattan <- function(df, x_breaks, color_map, test, robust) {
   colnames(df)[which(colnames(df) == pcol)] <- "PV"
   
   ggplot(df, aes(x=cumulative_pos, y=PV, color=color)) +
+    geom_hline(yintercept = -log10(sig_threshold), color = sig_color, alpha = 0.5, linetype = "dashed") +
     geom_point() +
     ggtitle("") +
     xlab("Chromosome") +
@@ -266,10 +267,10 @@ ss_tables <- function(output, se, test, df, row, int_colnames, beta_columns, se_
 
 
 
-reduce_data <- function(df, pcol) {
-  ms     <- df[,c("CHR", "cumulative_pos", pcol, "color")]
-  colnames(ms) <- c("CHR", "BP", "LOGP", "color")
+reduce_data <- function(ms, pcol) {
+  colnames(ms) <- c("CHR", "LOGP")
   numc <- length(sort(unique(ms$CHR)));
+  
   # part 3: reduce size for fast plotting --------------------------------------------------------------------------------------------------------------------------------------------
   quants <- c(0,0.002,0.5,0.998,1); 
   quants <- quantile(ms$LOGP, quants); # minimum, 0.2th percentile, median, 99.8th percentile and maximum are being calculated
@@ -278,13 +279,10 @@ reduce_data <- function(df, pcol) {
   if (nrow(ms) < 1E5) { #if there are lest than 100k rows then full data is rounded to 3 digits
     digs <- 3; 
     ms$LOGP <- round(ms$LOGP, digits=digs); 
-    ms$BP   <- round(ms$BP,   digits=digs); 
-    f  <- duplicated(ms); 
-    ms <-ms[!f,]; 
-    rm(f);
+    ms      <-ms[!duplicated(ms$LOGP),]
   }
   else { # round lower and upper parts separately
-    if (right>0.1) { # significant right tail
+    if (right>0.1) {  # significant right tail
       if (left>0.1) { # significant left tail
         f1 <- ms$LOGP <= quants[4] & ms$LOGP >= quants[2];
         digs1 <- 2; 
@@ -292,13 +290,12 @@ reduce_data <- function(df, pcol) {
         digs  <- 0*f1 + digs2; 
         digs[f1] <- digs1;
         ms$LOGP  <- round(ms$LOGP, digits=digs); 
-        ms$BP    <- round(ms$BP,  digits=digs);
         rm(digs);
         f=NULL; #store vector of duplicated rows
         for (i in 1:numc) {
-          m1 <- ms[ms$C==i, c("BP","LOGP")]; # subset by chromosome for smaller memory
-          f1 <- duplicated(m1);
-          f <- c(f,f1);
+          m1 <- ms[ms$C==i, c("LOGP"), drop = FALSE]; # subset by chromosome for smaller memory
+          f1 <- duplicated(m1$LOGP);
+          f  <- c(f,f1);
           rm(f1, m1);
         }
         ms <- ms[!f,]; 
@@ -311,12 +308,11 @@ reduce_data <- function(df, pcol) {
         digs  <- 0*f1 + digs2; 
         digs[f1] <- digs1;
         ms$LOGP  <- round(ms$LOGP, digits=digs); 
-        ms$BP    <- round(ms$BP,   digits=digs);
         rm(digs);
         f=NULL; #store vector of duplicated rows
         for (i in 1:numc) {
-          m1 <- ms[ms$C==i, c("BP","LOGP")]; # subset by chromosome for smaller memory
-          f1 <- duplicated(m1);
+          m1 <- ms[ms$C==i, c("LOGP"), drop = FALSE]; # subset by chromosome for smaller memory
+          f1 <- duplicated(m1$LOGP);
           f  <- c(f,f1);
           rm(f1, m1);
         }
@@ -331,13 +327,12 @@ reduce_data <- function(df, pcol) {
         digs2 <- 3; 
         digs  <- 0*f1 + digs2; 
         digs[f1] <- digs1;
-        ms$LOGP <- round(ms$LOGP, digits=digs); 
-        ms$BP   <- round(ms$BP,   digits=digs);
+        ms$LOGP  <- round(ms$LOGP, digits=digs); 
         rm(digs);
         f=NULL; #store vector of duplicated rows
         for (i in 1:numc) {
-          m1 <- ms[ms$C==i,c("BP","LOGP")]; # subset by chromosome for smaller memory
-          f1 <- duplicated(m1);
+          m1 <- ms[ms$C==i,c("LOGP"), drop = FALSE]; # subset by chromosome for smaller memory
+          f1 <- duplicated(m1$LOGP);
           f  <- c(f,f1);
           rm(f1, m1);
         }
@@ -346,13 +341,60 @@ reduce_data <- function(df, pcol) {
       }
       else { # insignificant left tail
         digs <- 3;
-        ms$LOGP <- round(ms$LOGP, digits=digs); 
-        ms$BP   <- round(ms$BP,   digits=digs); 
-        f  <- duplicated(ms); 
-        ms <- ms[!f,]; rm(f);# as there is no significant tail full data is rounded to 3 digits
+        ms$LOGP <- round(ms$LOGP, digits=digs);
+        ms <- ms[!duplicated(ms$LOGP),]; 
       }
     }
   }
   
   return(ms)
 }
+
+
+extract_which_chr <- function(data_in){
+  unique(data_in$CHR)[order(match(unique(data_in$CHR), c(paste0("",1:22), "X", "Y")))]
+}
+
+get_cumulative_length <- function(chrom_lengths){
+  cumulative_length <- 0
+  
+  if(length(chrom_lengths) > 1){
+    cumulative_length <- head(c(0,cumsum(x = unname(chrom_lengths))), -1)
+    names(cumulative_length) <- names(chrom_lengths)
+  }
+  return(cumulative_length)
+}
+
+get_x_breaks <- function(chrom_lengths){
+  cumulative_length <- get_cumulative_length(chrom_lengths)
+  x_breaks <-cumulative_length+round(chrom_lengths/2)
+  names(x_breaks)=gsub('chr', '', names(x_breaks))
+  if(length(chrom_lengths) == 21){
+    names(x_breaks)[20]=''
+  }
+  if(length(chrom_lengths) > 21){
+    names(x_breaks)[20]=''
+    names(x_breaks)[22]=''
+  }
+  return(x_breaks)
+}
+
+add_cumulative_pos <- function(data_in, chrom_lengths){
+  cumulative_length <- get_cumulative_length(chrom_lengths)
+  
+  tmp <- Map(function(x,y){x$cumulative_pos <- x$POS + y; return(x)}, 
+             split(data_in, data_in$CHR)[names(chrom_lengths)], get_cumulative_length(chrom_lengths)) 
+  return(do.call(rbind, tmp))
+}  
+
+add_color <- function(data_in, color1='black', color2='grey'){
+  if ('color'%in%colnames(data_in)){
+    user_color <- data_in$color
+  } else {
+    user_color <- rep(NA, nrow(data_in))
+  }
+  data_in$color <- ifelse(data_in$CHR %in% extract_which_chr(data_in)[c(TRUE, FALSE)], color1, color2)
+  data_in$color <- ifelse(is.na(user_color), data_in$color, user_color)
+  return(data_in)
+}
+

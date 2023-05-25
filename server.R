@@ -1,51 +1,3 @@
-extract_which_chr <- function(data_in){
-  unique(data_in$CHR)[order(match(unique(data_in$CHR), c(paste0("",1:22), "X", "Y")))]
-}
-
-get_cumulative_length <- function(chrom_lengths){
-  cumulative_length <- 0
-  
-  if(length(chrom_lengths) > 1){
-    cumulative_length <- head(c(0,cumsum(x = unname(chrom_lengths))), -1)
-    names(cumulative_length) <- names(chrom_lengths)
-  }
-  return(cumulative_length)
-}
-
-get_x_breaks <- function(chrom_lengths){
-  cumulative_length <- get_cumulative_length(chrom_lengths)
-  x_breaks <-cumulative_length+round(chrom_lengths/2)
-  names(x_breaks)=gsub('chr', '', names(x_breaks))
-  if(length(chrom_lengths) == 21){
-    names(x_breaks)[20]=''
-  }
-  if(length(chrom_lengths) > 21){
-    names(x_breaks)[20]=''
-    names(x_breaks)[22]=''
-  }
-  return(x_breaks)
-}
-
-add_cumulative_pos <- function(data_in, chrom_lengths){
-  cumulative_length <- get_cumulative_length(chrom_lengths)
-  
-  tmp <- Map(function(x,y){x$cumulative_pos <- x$POS + y; return(x)}, 
-             split(data_in, data_in$CHR)[names(chrom_lengths)], get_cumulative_length(chrom_lengths)) 
-  return(do.call(rbind, tmp))
-}  
-
-add_color <- function(data_in, color1='black', color2='grey'){
-  if ('color'%in%colnames(data_in)){
-    user_color <- data_in$color
-  } else {
-    user_color <- rep(NA, nrow(data_in))
-  }
-  data_in$color <- ifelse(data_in$CHR %in% extract_which_chr(data_in)[c(TRUE, FALSE)], color1, color2)
-  data_in$color <- ifelse(is.na(user_color), data_in$color, user_color)
-  return(data_in)
-}
-
-
 server <- function(input, output, session) {
 
   # UI - GENERAL ---------------------------------------------------------------
@@ -123,6 +75,14 @@ server <- function(input, output, session) {
     list(input$gwis_choice, input$se_choice)
   })
   
+  mh_sigThreshold <- reactive({
+    input$mh_sigthreshold
+  })
+  
+  mh_sigColor<- reactive({
+    input$mh_sigcolor
+  })
+  
   observeEvent(selectInputs(), {
     if (selectInputs()[[1]] == "marginal" & selectInputs()[[2]] == "modelbased") {
       show("gwis_mb_marginal_panel")
@@ -197,24 +157,24 @@ server <- function(input, output, session) {
 
   # Manhattan Plots ------------------------------------------------------------
   output$mb_marginal_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, "Marginal", FALSE)
+    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Marginal", FALSE)
   })
   output$rb_marginal_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, "Marginal", TRUE)
+    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Marginal", TRUE)
   })
   
   output$mb_interaction_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, "Interaction", FALSE)
+    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Interaction", FALSE)
   })
   output$rb_interaction_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, "Interaction", TRUE)
+    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Interaction", TRUE)
   })
   
   output$mb_joint_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, "Joint", FALSE)
+    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Joint", FALSE)
   })
   output$rb_joint_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, "Joint", TRUE)
+    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Joint", TRUE)
   })
   
   
@@ -414,8 +374,6 @@ server <- function(input, output, session) {
     
     ss_tables(output, "rb", "joint", data$rb_joint_nearest_points, row, data$int_colnames, data$beta_columns, data$robust_se_columns, data$robust_covariances, data$robust_cov_rownames)
   })
-  
-
 }
 
 

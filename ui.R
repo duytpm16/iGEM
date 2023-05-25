@@ -1,6 +1,8 @@
 options(shiny.maxRequestSize=6000*1024^2) 
 
 ui <- dashboardPage(
+  skin = "black",
+  
   # HEADER ------------------------------------------------------------------
   
   dashboardHeader(
@@ -18,9 +20,20 @@ ui <- dashboardPage(
   
   dashboardSidebar(
     width = 300,
-    fileInput("inputFile", "INPUT FILE:", 
-              accept = c("text/plain", ".txt", ".out"))
-    ),
+    sidebarMenu(
+      fileInput("inputFile", h6("Input File:", style = "font-size: 20px; color: #000000"), 
+                accept = c("text/plain", ".txt", ".out")),
+      br(),
+      h5("Plot Configurations:",
+         style = "padding-left:10px; font-size: 20px ;color: #000000;"),
+      menuItem(
+        h6("Manhattan", style = "font-size: 20px; color: #000000"),
+      
+        numericInput("mh_sigthreshold", label = "Significance Threshold", value = 1e-8, min = 0, max = 1),
+        textInput("mh_sigcolor", label = "Significance Color", value = "red")
+      )
+    )
+  ),
   
   
   # BODY --------------------------------------------------------------------
@@ -43,7 +56,8 @@ ui <- dashboardPage(
           style = 'padding-left:0px; padding-right:0px; padding-top:10px; padding-bottom:0px',
           bsButton("gwas", 
                    label = "GWIS", 
-                   icon  = icon("chart-column"))
+                   icon  = icon("chart-column"),
+                   style = "success")
       )
     ),
 
