@@ -8,9 +8,17 @@ server <- function(input, output, session) {
     req(input$inputFile)
     
     # Read File
-    df <- fread(input$inputFile$datapath, sep = "\t", header = T, data.table = F)
+    df <- fread(input$inputFile$datapath, sep = "\t", header = T)
+    gc(verbose = FALSE)
+    
+    setorderv(df, c("CHR", "POS"))
+    
+    data$chr_var_count <- df[, .N, by = .(CHR)]
+    data$chr_var_count <- as.data.frame(data$chr_var_count)
+  
     
     # Convert P-values
+    df <- as.data.frame(df)
     df$P_Value_Marginal    <- -log10(df$P_Value_Marginal)
     df$P_Value_Interaction <- -log10(df$P_Value_Interaction)
     df$P_Value_Joint       <- -log10(df$P_Value_Joint)
@@ -38,7 +46,7 @@ server <- function(input, output, session) {
     
     # Categorical interactions
     cat_interactions <- gsub("G[-]", "", interactions[-c(1,2)])
-    cat_interactions <- colnames(df)[grepl(paste0("^N[_]", cat_interactions), colnames(df))]
+    cat_interactions <- colnames(df)[grepl(paste0("^N[_]", cat_interactions, collapse = "|"), colnames(df))]
     cat_interactions <- gsub("N[_]", "", cat_interactions)
     cat_n  <- paste0("<center>N<br>", gsub("[_]", " - ", cat_interactions), "</center>")
     cat_af <- paste0("<center>AF<br>", gsub("[_]", " - ", cat_interactions), "</center>")
@@ -54,23 +62,19 @@ server <- function(input, output, session) {
     # Manhattan plot data
     chrom_lengths <- chrom_lengths_hg38[extract_which_chr(df)]
     df <- add_cumulative_pos(df, chrom_lengths)
-    df <- add_color(df, color1 = "black", color2 = "grey")
     
     x_breaks <- get_x_breaks(chrom_lengths_hg38)
     names(x_breaks)[20]="20"
     names(x_breaks)[22]="22"
     data$x_breaks <- x_breaks
-    
-    color_map <- unique(df$color)
-    names(color_map) <- unique(df$color)
-    data$color_map <- color_map
+  
     
     data$df <- df
   })
   
   
   
-  # UI - GWIS Panels -----------------------------------------------------------
+  # Inputs ---------------------------------------------------------------------
   selectInputs <- reactive({
     list(input$gwis_choice, input$se_choice)
   })
@@ -79,10 +83,19 @@ server <- function(input, output, session) {
     input$mh_sigthreshold
   })
   
-  mh_sigColor<- reactive({
+  mh_sigColor <- reactive({
     input$mh_sigcolor
   })
   
+  mh_chrColor <- reactive({
+    nchr   <- nrow(data$chr_var_count)
+    colors <- strsplit(input$mh_chrcolor, split = ";")[[1]]
+    colors <- rep(colors, ceiling(nchr / length(colors)))
+    
+    rbindlist(lapply(1:nchr, function(x) data.frame(color = rep(colors[x], data$chr_var_count$N[x]))))
+  })
+  
+  # UI - GWIS Panels -----------------------------------------------------------
   observeEvent(selectInputs(), {
     if (selectInputs()[[1]] == "marginal" & selectInputs()[[2]] == "modelbased") {
       show("gwis_mb_marginal_panel")
@@ -157,24 +170,24 @@ server <- function(input, output, session) {
 
   # Manhattan Plots ------------------------------------------------------------
   output$mb_marginal_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Marginal", FALSE)
+    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Marginal", FALSE)
   })
   output$rb_marginal_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Marginal", TRUE)
+    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Marginal", TRUE)
   })
   
   output$mb_interaction_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Interaction", FALSE)
+    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Interaction", FALSE)
   })
   output$rb_interaction_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Interaction", TRUE)
+    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Interaction", TRUE)
   })
   
   output$mb_joint_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Joint", FALSE)
+    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Joint", FALSE)
   })
   output$rb_joint_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, data$color_map, mh_sigThreshold(), mh_sigColor(), "Joint", TRUE)
+    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Joint", TRUE)
   })
   
   

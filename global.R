@@ -58,8 +58,8 @@ manhattan_box <- function(plotOutputId) {
     width = 12,
     withSpinner(
       plotOutput(plotOutputId, 
-                 height = 300,
-                 click  = paste0(plotOutputId, "_click"))
+                   height = 300,
+                   click  = paste0(plotOutputId, "_click"))
     )
   )
 }
@@ -113,7 +113,7 @@ ssTable_box <- function(boxTitle, tableOutputPrefix) {
 }
 
 
-plot_manhattan <- function(df, x_breaks, color_map, sig_threshold, sig_color, test, robust) {
+plot_manhattan <- function(df, x_breaks, sig_threshold, sig_color, chr_color, test, robust) {
   if (is.null(df)) {
     return(NULL)
   }
@@ -122,9 +122,9 @@ plot_manhattan <- function(df, x_breaks, color_map, sig_threshold, sig_color, te
   y.max <- floor(max(df[,pcol])) + 5
   colnames(df)[which(colnames(df) == pcol)] <- "PV"
   
-  ggplot(df, aes(x=cumulative_pos, y=PV, color=color)) +
+  ggplot(df, aes(x=cumulative_pos, y=PV)) +
     geom_hline(yintercept = -log10(sig_threshold), color = sig_color, alpha = 0.5, linetype = "dashed") +
-    geom_point() +
+    geom_point(color = chr_color$color) +
     ggtitle("") +
     xlab("Chromosome") +
     ylab(expression(-log[10](italic(p)))) +
@@ -132,8 +132,6 @@ plot_manhattan <- function(df, x_breaks, color_map, sig_threshold, sig_color, te
                        breaks = x_breaks,
                        labels = names(x_breaks)) +
     scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max)) +
-    scale_color_manual(values = color_map,
-                       guide  = 'none') +
     theme(panel.background = element_blank(),
           panel.grid       = element_line(color = "grey97"),
           axis.line        = element_line(linewidth = 0.6),
@@ -156,7 +154,7 @@ plot_qq <- function(df, pcol) {
           panel.grid       = element_line(color = "grey97"),
           axis.line        = element_line(linewidth = 0.6)) +
     ylab(expression(paste('Observed ', -log[10](italic(p))))) +
-    xlab(expression(paste('Expected ',-log[10](italic(p)))))
+    xlab(expression(paste('Expected ', -log[10](italic(p)))))
 }
 
 
@@ -239,7 +237,8 @@ ss_tables <- function(output, se, test, df, row, int_colnames, beta_columns, se_
                     scrollX    = TRUE,
                     scrollY    = "250px",
                     pageLength = 1000,
-                    columnDefs = list(list(width = '150px', targets = "_all", className = "dt-center"))
+                    columnDefs = list(list(className = "dt-right",  targets = 0, width = '125px'),
+                                      list(className = "dt-center", targets = 1, width = '100px'))
                   ))
   })
 
@@ -387,14 +386,4 @@ add_cumulative_pos <- function(data_in, chrom_lengths){
   return(do.call(rbind, tmp))
 }  
 
-add_color <- function(data_in, color1='black', color2='grey'){
-  if ('color'%in%colnames(data_in)){
-    user_color <- data_in$color
-  } else {
-    user_color <- rep(NA, nrow(data_in))
-  }
-  data_in$color <- ifelse(data_in$CHR %in% extract_which_chr(data_in)[c(TRUE, FALSE)], color1, color2)
-  data_in$color <- ifelse(is.na(user_color), data_in$color, user_color)
-  return(data_in)
-}
 
