@@ -57,11 +57,74 @@ manhattan_box <- function(plotOutputId) {
     solidHeader = FALSE,
     width = 12,
     withSpinner(
-      plotOutput(plotOutputId, 
+      fluidPage(
+        plotOutput(plotOutputId, 
                    height = 300,
-                   click  = paste0(plotOutputId, "_click"))
+                   click  = paste0(plotOutputId, "_click"),
+                   hover  = hoverOpts(paste0(plotOutputId, "_hover"), delay = 50)),
+        uiOutput(paste0(plotOutputId, "_hover_info"))
+      )
     )
   )
+}
+
+plot_manhattan <- function(df, x_breaks, sig_threshold, sig_color, chr_color, test, robust) {
+  if (is.null(df)) {
+    return(NULL)
+  }
+  
+  pcol <- ifelse(robust, paste0("robust_", paste0("P_Value_", test)), paste0("P_Value_", test))
+  y.max <- floor(max(df[,pcol])) + 5
+  colnames(df)[which(colnames(df) == pcol)] <- "PV"
+  
+  ggplot(df, aes(x=cumulative_pos, y=PV)) +
+    geom_hline(yintercept = -log10(sig_threshold), color = sig_color, linetype = "dashed") +
+    geom_point(color = chr_color$color, size = 2.5, alpha = 0.5) +
+    ggtitle("") +
+    xlab("\nChromosome") +
+    ylab(expression(-log[10](italic(p)))) +
+    scale_x_continuous(expand = c(0.01,0),
+                       breaks = x_breaks,
+                       labels = names(x_breaks)) +
+    scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max)) +
+    theme(panel.background = element_blank(),
+          panel.grid       = element_line(color = "grey97"),
+          axis.line        = element_line(linewidth = 0.6),
+          axis.title       = element_text(size = 18),
+          axis.title.y     = element_text(margin =  margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.text        = element_text(size = 13),
+          legend.position = "none")
+}
+
+manhattan_tooltip <- function (input, df, plotOutputId, pcol) {
+  if (is.null(df)) {
+    return(NULL)
+  }
+  
+  hover <- input[[paste0(plotOutputId, "_hover")]] 
+  point <- nearPoints(df, 
+                      hover, 
+                      xvar = "cumulative_pos", 
+                      yvar = pcol,
+                      maxpoints =  1)
+  
+  if (is.null(point)) return(NULL)
+  if (nrow(point) == 0) return(NULL)
+  
+  left_px <- hover$coords_css$x
+  top_px  <- hover$coords_css$y
+  
+  style <- paste0("position:absolute; z-index:100; background-color: rgba(245, 245, 245, 0.85); ",
+                  "left:", left_px + 2, "px; top:", top_px + 2, "px;")
+  
+  # actual tooltip created as wellPanel
+  wellPanel(
+    style = style,
+    p(HTML(paste0("<b> ID: </b>", point$SNPID, "<br/>",
+                  "<b> CHR: </b>", point$CHR, "<br/>",
+                  "<b> POS: </b>", point$POS, "<br/>",
+                  "<b> -log10(p): </b>", format(round(point[,pcol], 2), nsmall = 2), "<br/>"
+    ))))
 }
 
 
@@ -77,6 +140,22 @@ qq_box <- function(plotOutputId) {
                  height = 300)
     )
   )
+}
+
+plot_qq <- function(df, pcol) {
+  if (is.null(df)) {
+    return(NULL)
+  }
+  
+  qq_df <- drop_dense(sort(df[[pcol]], decreasing = T), -log10(stats::ppoints(length(df))))
+  ggplot(qq_df, aes(x = y, y = x)) +
+    geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+    geom_point() +
+    theme(panel.background = element_blank(),
+          panel.grid       = element_line(color = "grey97"),
+          axis.line        = element_line(linewidth = 0.6)) +
+    ylab(expression(paste('Observed ', -log[10](italic(p))))) +
+    xlab(expression(paste('Expected ', -log[10](italic(p)))))
 }
 
 
@@ -110,51 +189,6 @@ ssTable_box <- function(boxTitle, tableOutputPrefix) {
       dataTableOutput(tableOutputIds[3]),
     )
   )
-}
-
-
-plot_manhattan <- function(df, x_breaks, sig_threshold, sig_color, chr_color, test, robust) {
-  if (is.null(df)) {
-    return(NULL)
-  }
-  
-  pcol <- ifelse(robust, paste0("robust_", paste0("P_Value_", test)), paste0("P_Value_", test))
-  y.max <- floor(max(df[,pcol])) + 5
-  colnames(df)[which(colnames(df) == pcol)] <- "PV"
-  
-  ggplot(df, aes(x=cumulative_pos, y=PV)) +
-    geom_hline(yintercept = -log10(sig_threshold), color = sig_color, alpha = 0.5, linetype = "dashed") +
-    geom_point(color = chr_color$color) +
-    ggtitle("") +
-    xlab("Chromosome") +
-    ylab(expression(-log[10](italic(p)))) +
-    scale_x_continuous(expand = c(0.01,0),
-                       breaks = x_breaks,
-                       labels = names(x_breaks)) +
-    scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max)) +
-    theme(panel.background = element_blank(),
-          panel.grid       = element_line(color = "grey97"),
-          axis.line        = element_line(linewidth = 0.6),
-          axis.title       = element_text(size = 13),
-          axis.text        = element_text(size = 11),
-          legend.position = "none")
-}
-
-
-plot_qq <- function(df, pcol) {
-  if (is.null(df)) {
-    return(NULL)
-  }
-  
-  qq_df <- drop_dense(sort(df[[pcol]], decreasing = T), -log10(stats::ppoints(length(df))))
-  ggplot(qq_df, aes(x = y, y = x)) +
-    geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-    geom_point() +
-    theme(panel.background = element_blank(),
-          panel.grid       = element_line(color = "grey97"),
-          axis.line        = element_line(linewidth = 0.6)) +
-    ylab(expression(paste('Observed ', -log[10](italic(p))))) +
-    xlab(expression(paste('Expected ', -log[10](italic(p)))))
 }
 
 

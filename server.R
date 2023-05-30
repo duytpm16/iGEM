@@ -190,7 +190,27 @@ server <- function(input, output, session) {
     plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Joint", TRUE)
   })
   
+  # Manhattan Plot Tooltip------------------------------------------------------
+  output$mb_marginal_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input, data$df, "mb_marginal_manhattan_plot", "P_Value_Marginal")
+  })
+  output$rb_marginal_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input, data$df, "rb_marginal_manhattan_plot", "robust_P_Value_Marginal")
+  })
   
+  output$mb_interaction_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input, data$df, "mb_interaction_manhattan_plot", "P_Value_Interaction")
+  })
+  output$rb_interaction_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input, data$df, "rb_interaction_manhattan_plot", "robust_P_Value_Interaction")
+  })
+  
+  output$mb_joint_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input, data$df, "mb_joint_manhattan_plot", "P_Value_Joint")
+  })
+  output$rb_joint_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input, data$df, "rb_joint_manhattan_plot", "robust_P_Value_Joint")
+  })
   
   # UI - QQ Box ---------------------------------------------------------------- 
   output$mb_marginal_qq_box <- renderUI({

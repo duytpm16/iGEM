@@ -24,41 +24,26 @@ ui <- dashboardPage(
                 accept = c("text/plain", ".txt", ".out")),
       br(),
       h5("Plot Configurations:",
-         style = "font-family: Source Sans Pro; font-weight: bold; padding-left:10px; font-size: 20px ;color: #000000;"),
+         style = "font-family: Source Sans Pro; padding-left:10px; font-size: 20px ;color: #000000;"),
       menuItem(
-        h6("Manhattan", style = "font-family: Source Sans Pro; font-weight: bold; font-size: 20px; color: #000000"),
+        h6("Manhattan", style = "font-family: Source Sans Pro; font-size: 20px; color: #000000"),
       
         fluidRow(
           column(
             width = 9,
             numericInput("mh_sigthreshold", label = "Significance Threshold", value = 1e-8, min = 0, max = 1),
-          ),
-          column(
-            width = 3,
-            style = 'padding-left:0px; padding-right:0px; padding-top:37px; padding-bottom:0px',
-            #actionButton("mh_sigthreshold_submit", "Submit")
           )
         ),
         fluidRow(
           column(
             width = 9,
             textInput("mh_sigcolor", label = "Significance Color", value = "red"),
-          ),
-          column(
-            width = 3,
-            style = 'padding-left:0px; padding-right:0px; padding-top:37px; padding-bottom:0px',
-            #actionButton("mh_sigcolor_submit", "Submit")
           )
         ),
         fluidRow(
           column(
             width = 9,
-            textInput("mh_chrcolor", label = "Chromosome Colors",  value = "black;grey"),
-          ),
-          column(
-            width = 3,
-            style = 'padding-left:0px; padding-right:0px; padding-top:37px; padding-bottom:0px',
-            #actionButton("mh_chrcolor_submit", "Submit")
+            textInput("mh_chrcolor", label = "Chromosome Colors",  value = "black;darkgray"),
           )
         )
       )
