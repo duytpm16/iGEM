@@ -2,16 +2,6 @@
 
 source('dependencies.R')
 
-# https://genome.ucsc.edu/goldenpath/help/hg38.chrom.sizes
-chrom_lengths_hg38=c("1"  = 248956422, "2"  = 242193529, "3"  = 198295559,
-                     "4"  = 190214555, "5"  = 181538259, "6"  = 170805979,
-                     "7"  = 159345973, "8"  = 145138636, "9"  = 138394717,
-                     "10" = 133797422, "11" = 135086622, "12" = 133275309,
-                     "13" = 114364328, "14" = 107043718, "15" = 101991189,
-                     "16" = 90338345,  "17" = 83257441,  "18" = 80373285,
-                     "19" = 58617616,  "20" = 64444167,  "21" = 46709983,
-                     "22" = 50818468,   "X" = 156040895,  "Y" = 57227415)
-
 
 # FLUID DESIGN FUNCTION --------------------------------------------------------
 
@@ -42,7 +32,7 @@ fluid_design <- function(test, model) {
         
         column(width = 6,
                style  = 'padding-left:0px; padding-right:0px; padding-top:25px; padding-bottom:0px',
-               uiOutput(paste0(test, "_", model, "_", "ss_tables")))
+               uiOutput(paste0(test, "_", model, "_", "ssTables")))
       )
     )
   )
@@ -68,63 +58,55 @@ manhattan_box <- function(plotOutputId) {
   )
 }
 
-plot_manhattan <- function(df, x_breaks, sig_threshold, sig_color, chr_color, test, robust) {
+manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color, test, robust) {
   if (is.null(df)) {
     return(NULL)
   }
   
   pcol <- ifelse(robust, paste0("robust_", paste0("P_Value_", test)), paste0("P_Value_", test))
-  y.max <- floor(max(df[,pcol])) + 5
+  y.max <- ceiling(max(df[,pcol])) + 5
   colnames(df)[which(colnames(df) == pcol)] <- "PV"
   
   ggplot(df, aes(x=cumulative_pos, y=PV)) +
     geom_hline(yintercept = -log10(sig_threshold), color = sig_color, linetype = "dashed") +
     geom_point(color = chr_color$color, size = 2.5, alpha = 0.5) +
     ggtitle("") +
-    xlab("\nChromosome") +
+    xlab("Chromosome") +
     ylab(expression(-log[10](italic(p)))) +
     scale_x_continuous(expand = c(0.01,0),
                        breaks = x_breaks,
                        labels = names(x_breaks)) +
-    scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max)) +
+    scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max), breaks = round(seq(0, y.max, length.out = 6))) +
     theme(panel.background = element_blank(),
           panel.grid       = element_line(color = "grey97"),
           axis.line        = element_line(linewidth = 0.6),
-          axis.title       = element_text(size = 18),
-          axis.title.y     = element_text(margin =  margin(t = 0, r = 20, b = 0, l = 0)),
-          axis.text        = element_text(size = 13),
+          axis.title       = element_text(size = 15),
+          axis.title.x     = element_text(margin =  margin(t = 10, r = , b = 0, l = 0)),
+          axis.title.y     = element_text(margin =  margin(t = 0, r = 10, b = 0, l = 0)),
+          axis.text        = element_text(size = 12, face = "bold"),
           legend.position = "none")
 }
 
-manhattan_tooltip <- function (input, df, plotOutputId, pcol) {
+manhattan_tooltip <- function (hover, df, pcol) {
   if (is.null(df)) {
     return(NULL)
   }
   
-  hover <- input[[paste0(plotOutputId, "_hover")]] 
-  point <- nearPoints(df, 
-                      hover, 
-                      xvar = "cumulative_pos", 
-                      yvar = pcol,
-                      maxpoints =  1)
+  point <- nearPoints(df, hover, maxpoints =  1,
+                      xvar = "cumulative_pos",  yvar = pcol)
   
-  if (is.null(point)) return(NULL)
-  if (nrow(point) == 0) return(NULL)
-  
-  left_px <- hover$coords_css$x
-  top_px  <- hover$coords_css$y
+  if (is.null(point) || nrow(point) == 0) return(NULL)
   
   style <- paste0("position:absolute; z-index:100; background-color: rgba(245, 245, 245, 0.85); ",
-                  "left:", left_px + 2, "px; top:", top_px + 2, "px;")
-  
-  # actual tooltip created as wellPanel
+                  "left:", hover$coords_css$x + 2, "px; top:", hover$coords_css$y + 2, "px;")
   wellPanel(
     style = style,
     p(HTML(paste0("<b> ID: </b>", point$SNPID, "<br/>",
                   "<b> CHR: </b>", point$CHR, "<br/>",
                   "<b> POS: </b>", point$POS, "<br/>",
-                  "<b> -log10(p): </b>", format(round(point[,pcol], 2), nsmall = 2), "<br/>"
-    ))))
+                  "<b> -log10(p): </b>", format(round(point[,pcol], 2), nsmall = 2), "<br/>"))
+    )
+  )
 }
 
 
@@ -142,7 +124,7 @@ qq_box <- function(plotOutputId) {
   )
 }
 
-plot_qq <- function(df, pcol) {
+qq_plot <- function(df, pcol) {
   if (is.null(df)) {
     return(NULL)
   }
@@ -153,7 +135,9 @@ plot_qq <- function(df, pcol) {
     geom_point() +
     theme(panel.background = element_blank(),
           panel.grid       = element_line(color = "grey97"),
-          axis.line        = element_line(linewidth = 0.6)) +
+          axis.line        = element_line(linewidth = 0.6),
+          axis.title       = element_text(size = 15, face = "bold"),
+          axis.text        = element_text(size = 12, face = "bold")) +
     ylab(expression(paste('Observed ', -log[10](italic(p))))) +
     xlab(expression(paste('Expected ', -log[10](italic(p)))))
 }
@@ -161,7 +145,7 @@ plot_qq <- function(df, pcol) {
 
 variantTable_box <- function(tableOutputId) {
   box(
-    title = p("Variants Table", style = 'font-size:21px;'),
+    title = p("Variants in Region", style = 'font-size:21px;'),
     status = "primary",
     collapsible = FALSE,
     solidHeader = FALSE,
@@ -171,6 +155,26 @@ variantTable_box <- function(tableOutputId) {
                       height = 400)
     )
   )
+}
+
+variantTable <- function(df, pcol, variant_colnames, cat_interactions) {
+  DT::datatable(
+    df[, c(pcol, "SNPID", "CHR", "POS", "Non_Effect_Allele", "Effect_Allele", "N_Samples", "AF", cat_interactions)],
+    colnames  = variant_colnames,
+    rownames  = FALSE,
+    escape    = FALSE,
+    style     = "bootstrap",
+    selection = 'single',
+    caption   = "Select a row to view the summary statistics",
+    options   = list(
+      dom = 'tp',
+      search = list(regex = TRUE, caseInsensitive = TRUE),
+      pageLength = 5,
+      ordering = TRUE,
+      stateSave = TRUE,
+      columnDefs = list(list(targets = "_all", className = "dt-center"))
+    )
+  ) %>% formatRound(columns=c(1), digits=2)
 }
 
 ssTable_box <- function(boxTitle, tableOutputPrefix) {
@@ -191,29 +195,7 @@ ssTable_box <- function(boxTitle, tableOutputPrefix) {
   )
 }
 
-
-variant_table <- function(df, pcol, variant_colnames, cat_interactions) {
-  DT::datatable(
-    df[, c(pcol, "SNPID", "CHR", "POS", "Non_Effect_Allele", "Effect_Allele", "N_Samples", "AF", cat_interactions)],
-    colnames  = variant_colnames,
-    rownames  = FALSE,
-    escape    = FALSE,
-    style     = "bootstrap",
-    selection = 'single',
-    caption   = "Select a row to view the summary statistics",
-    options   = list(
-                  dom = 'tp',
-                  search = list(regex = TRUE, caseInsensitive = TRUE),
-                  pageLength = 5,
-                  ordering = TRUE,
-                  stateSave = TRUE,
-                  columnDefs = list(list(targets = "_all", className = "dt-center"))
-                )
-    ) %>% formatRound(columns=c(1), digits=2)
-}
-
-
-ss_tables <- function(output, se, test, df, row, int_colnames, beta_columns, se_columns, covariances, cov_rownames) {
+ssTables <- function(output, se, test, df, row, int_colnames, beta_columns, se_columns, covariances, cov_rownames) {
   if (se == "mb") {
     ss_caption1 <- "Table 1: Coefficient Estimates and Model-based Standard Errors."
     ss_caption2 <- "Table 2: Model-based Covariances."
@@ -238,7 +220,7 @@ ss_tables <- function(output, se, test, df, row, int_colnames, beta_columns, se_
   beta_se[["se"]]   <- df[row, se_columns,   drop = F]
   beta_se <- rbindlist(beta_se, use.names = FALSE)
   beta_se <- signif(beta_se, digits = 6)
-  output[[paste0(se, "_", test, "_ss_table1")]] <- DT::renderDT({
+  output[[paste0(se, "_", test, "_ssTable1")]] <- DT::renderDT({
     DT::datatable(
       beta_se,
       colnames  = int_colnames,
@@ -257,7 +239,7 @@ ss_tables <- function(output, se, test, df, row, int_colnames, beta_columns, se_
   
   
   covs <- cbind(cov_rownames, c(df[row, covariances, drop = T]))
-  output[[paste0(se, "_", test, "_ss_table2")]] <- DT::renderDT({
+  output[[paste0(se, "_", test, "_ssTable2")]] <- DT::renderDT({
     DT::datatable(
       covs,
       colnames  = ss_colname2,
@@ -279,7 +261,7 @@ ss_tables <- function(output, se, test, df, row, int_colnames, beta_columns, se_
   
   pvals <- df[row, pcols]
   pvals <- signif(10^-pvals, digits = 6)
-  output[[paste0(se, "_", test, "_ss_table3")]] <- DT::renderDT({
+  output[[paste0(se, "_", test, "_ssTable3")]] <- DT::renderDT({
     DT::datatable(
       pvals,
       rownames  = ss_rowname3,
@@ -384,11 +366,23 @@ reduce_data <- function(ms, pcol) {
 }
 
 
+
+# https://genome.ucsc.edu/goldenpath/help/hg38.chrom.sizes
+chrom_lengths_hg38=c("1"  = 248956422, "2"  = 242193529, "3"  = 198295559,
+                     "4"  = 190214555, "5"  = 181538259, "6"  = 170805979,
+                     "7"  = 159345973, "8"  = 145138636, "9"  = 138394717,
+                     "10" = 133797422, "11" = 135086622, "12" = 133275309,
+                     "13" = 114364328, "14" = 107043718, "15" = 101991189,
+                     "16" = 90338345,  "17" = 83257441,  "18" = 80373285,
+                     "19" = 58617616,  "20" = 64444167,  "21" = 46709983,
+                     "22" = 50818468,   "X" = 156040895,  "Y" = 57227415)
+
+
 extract_which_chr <- function(data_in){
   unique(data_in$CHR)[order(match(unique(data_in$CHR), c(paste0("",1:22), "X", "Y")))]
 }
 
-get_cumulative_length <- function(chrom_lengths){
+get_cumulative_length <- function(chrom_lengths) {
   cumulative_length <- 0
   
   if(length(chrom_lengths) > 1){
@@ -398,7 +392,7 @@ get_cumulative_length <- function(chrom_lengths){
   return(cumulative_length)
 }
 
-get_x_breaks <- function(chrom_lengths){
+get_x_breaks <- function(chrom_lengths) {
   cumulative_length <- get_cumulative_length(chrom_lengths)
   x_breaks <-cumulative_length+round(chrom_lengths/2)
   names(x_breaks)=gsub('chr', '', names(x_breaks))
@@ -412,7 +406,7 @@ get_x_breaks <- function(chrom_lengths){
   return(x_breaks)
 }
 
-add_cumulative_pos <- function(data_in, chrom_lengths){
+add_cumulative_pos <- function(data_in, chrom_lengths) {
   cumulative_length <- get_cumulative_length(chrom_lengths)
   
   tmp <- Map(function(x,y){x$cumulative_pos <- x$POS + y; return(x)}, 

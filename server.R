@@ -19,6 +19,7 @@ server <- function(input, output, session) {
     
     # Convert P-values
     df <- as.data.frame(df)
+    
     df$P_Value_Marginal    <- -log10(df$P_Value_Marginal)
     df$P_Value_Interaction <- -log10(df$P_Value_Interaction)
     df$P_Value_Joint       <- -log10(df$P_Value_Joint)
@@ -74,7 +75,7 @@ server <- function(input, output, session) {
   
   
   
-  # Inputs ---------------------------------------------------------------------
+  # Inputs -------------------------------------------------------------
   selectInputs <- reactive({
     list(input$gwis_choice, input$se_choice)
   })
@@ -95,7 +96,9 @@ server <- function(input, output, session) {
     rbindlist(lapply(1:nchr, function(x) data.frame(color = rep(colors[x], data$chr_var_count$N[x]))))
   })
   
-  # UI - GWIS Panels -----------------------------------------------------------
+  
+  
+  # GWIS Panels ----------------------------------------------------------------
   observeEvent(selectInputs(), {
     if (selectInputs()[[1]] == "marginal" & selectInputs()[[2]] == "modelbased") {
       show("gwis_mb_marginal_panel")
@@ -144,10 +147,12 @@ server <- function(input, output, session) {
   
   
   
-  # UI - Manhattan Box ---------------------------------------------------------
+  
+  # Manhattan Box --------------------------------------------------------------
   output$mb_marginal_manhattan_box <- renderUI({
     manhattan_box("mb_marginal_manhattan_plot")
   })
+  
   output$rb_marginal_manhattan_box <- renderUI({
     manhattan_box("rb_marginal_manhattan_plot")
   })
@@ -155,6 +160,7 @@ server <- function(input, output, session) {
   output$mb_interaction_manhattan_box <- renderUI({
     manhattan_box("mb_interaction_manhattan_plot")
   })
+  
   output$rb_interaction_manhattan_box <- renderUI({
     manhattan_box("rb_interaction_manhattan_plot")
   })
@@ -162,60 +168,72 @@ server <- function(input, output, session) {
   output$mb_joint_manhattan_box <- renderUI({
     manhattan_box("mb_joint_manhattan_plot")
   })
+  
   output$rb_joint_manhattan_box <- renderUI({
     manhattan_box("rb_joint_manhattan_plot")
   })
   
   
 
-  # Manhattan Plots ------------------------------------------------------------
+  # Manhattan Plot -------------------------------------------------------------
   output$mb_marginal_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Marginal", FALSE)
+    manhattan_plot(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Marginal", FALSE)
   })
+  
   output$rb_marginal_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Marginal", TRUE)
+    manhattan_plot(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Marginal", TRUE)
   })
   
   output$mb_interaction_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Interaction", FALSE)
+    manhattan_plot(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Interaction", FALSE)
   })
+  
   output$rb_interaction_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Interaction", TRUE)
+    manhattan_plot(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Interaction", TRUE)
   })
   
   output$mb_joint_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Joint", FALSE)
-  })
-  output$rb_joint_manhattan_plot <- renderPlot({
-    plot_manhattan(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Joint", TRUE)
+    manhattan_plot(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Joint", FALSE)
   })
   
-  # Manhattan Plot Tooltip------------------------------------------------------
-  output$mb_marginal_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input, data$df, "mb_marginal_manhattan_plot", "P_Value_Marginal")
+  output$rb_joint_manhattan_plot <- renderPlot({
+    manhattan_plot(data$df, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor(), "Joint", TRUE)
   })
+  
+  
+  
+  # Manhattan Tooltip-----------------------------------------------------------
+  output$mb_marginal_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input[["mb_marginal_manhattan_plot_hover"]], data$df, "P_Value_Marginal")
+  })
+  
   output$rb_marginal_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input, data$df, "rb_marginal_manhattan_plot", "robust_P_Value_Marginal")
+    manhattan_tooltip(input[["rb_marginal_manhattan_plot_hover"]], data$df, "robust_P_Value_Marginal")
   })
   
   output$mb_interaction_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input, data$df, "mb_interaction_manhattan_plot", "P_Value_Interaction")
+    manhattan_tooltip(input[["mb_interaction_manhattan_plot_hover"]], data$df, "P_Value_Interaction")
   })
+  
   output$rb_interaction_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input, data$df, "rb_interaction_manhattan_plot", "robust_P_Value_Interaction")
+    manhattan_tooltip(input[["rb_interaction_manhattan_plot_hover"]], data$df, "robust_P_Value_Interaction")
   })
   
   output$mb_joint_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input, data$df, "mb_joint_manhattan_plot", "P_Value_Joint")
-  })
-  output$rb_joint_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input, data$df, "rb_joint_manhattan_plot", "robust_P_Value_Joint")
+    manhattan_tooltip(input[["mb_joint_manhattan_plot_hover"]], data$df, "P_Value_Joint")
   })
   
-  # UI - QQ Box ---------------------------------------------------------------- 
+  output$rb_joint_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input[["rb_joint_manhattan_plot_hover"]], data$df, "robust_P_Value_Joint")
+  })
+  
+  
+  
+  # QQ Box ---------------------------------------------------------------------
   output$mb_marginal_qq_box <- renderUI({
     qq_box("mb_marginal_qq_plot")
   })
+  
   output$rb_marginal_qq_box <- renderUI({
     qq_box("rb_marginal_qq_plot")
   })
@@ -223,6 +241,7 @@ server <- function(input, output, session) {
   output$mb_interaction_qq_box <- renderUI({
     qq_box("mb_interaction_qq_plot")
   })
+  
   output$rb_interaction_qq_box <- renderUI({
     qq_box("rb_interaction_qq_plot")
   })
@@ -230,6 +249,7 @@ server <- function(input, output, session) {
   output$mb_joint_qq_box <- renderUI({
     qq_box("mb_joint_qq_plot")
   })
+  
   output$rb_joint_qq_box <- renderUI({
     qq_box("rb_joint_qq_plot")
   })
@@ -238,55 +258,55 @@ server <- function(input, output, session) {
   
   # QQ Plot --------------------------------------------------------------------
   output$mb_marginal_qq_plot <- renderPlot({
-    plot_qq(data$df, "P_Value_Marginal")
+    qq_plot(data$df, "P_Value_Marginal")
   })
+  
   output$rb_marginal_qq_plot <- renderPlot({
-    plot_qq(data$df, "robust_P_Value_Marginal")
+    qq_plot(data$df, "robust_P_Value_Marginal")
   })
   
   output$mb_interaction_qq_plot <- renderPlot({
-    plot_qq(data$df, "P_Value_Interaction")
+    qq_plot(data$df, "P_Value_Interaction")
   })
+  
   output$rb_interaction_qq_plot <- renderPlot({
-    plot_qq(data$df, "robust_P_Value_Interaction")
+    qq_plot(data$df, "robust_P_Value_Interaction")
   })
   
   output$mb_joint_qq_plot <- renderPlot({
-    plot_qq(data$df, "P_Value_Joint")
+    qq_plot(data$df, "P_Value_Joint")
   })
+  
   output$rb_joint_qq_plot <- renderPlot({
-    plot_qq(data$df, "robust_P_Value_Joint")
+    qq_plot(data$df, "robust_P_Value_Joint")
   })
   
   
   
-  # UI - Variant Table Box -----------------------------------------------------
+  # Variant Table Box ----------------------------------------------------------
   observeEvent(input$mb_marginal_manhattan_plot_click, {
     output$mb_marginal_variants_table <- renderUI({
       variantTable_box("mb_marginal_manhattan_plot_table")
     })
     
-    data$mb_marginal_nearest_points <- nearPoints(data$df, 
-                                                     input$mb_marginal_manhattan_plot_click,
-                                                     xvar = "cumulative_pos", 
-                                                     yvar = "P_Value_Marginal")
+    data$mb_marginal_nearest_points <- nearPoints(data$df, input$mb_marginal_manhattan_plot_click,
+                                                  xvar = "cumulative_pos", yvar = "P_Value_Marginal")
     
     output$mb_marginal_manhattan_plot_table <- DT::renderDT({
-      variant_table(data$mb_marginal_nearest_points, "P_Value_Marginal", data$var_colnames, data$cat_interactions)
+      variantTable(data$mb_marginal_nearest_points, "P_Value_Marginal", data$var_colnames, data$cat_interactions)
     })
   })
+  
   observeEvent(input$rb_marginal_manhattan_plot_click, {
     output$rb_marginal_variants_table <- renderUI({
       variantTable_box("rb_marginal_manhattan_plot_table")
     })
     
-    data$rb_marginal_nearest_points <- nearPoints(data$df, 
-                                                     input$rb_marginal_manhattan_plot_click,
-                                                     xvar = "cumulative_pos", 
-                                                     yvar = "robust_P_Value_Marginal")
+    data$rb_marginal_nearest_points <- nearPoints(data$df, input$rb_marginal_manhattan_plot_click,
+                                                  xvar = "cumulative_pos", yvar = "robust_P_Value_Marginal")
     
     output$rb_marginal_manhattan_plot_table <- DT::renderDT({
-      variant_table(data$rb_marginal_nearest_points, "robust_P_Value_Marginal", data$var_colnames, data$cat_interactions)
+      variantTable(data$rb_marginal_nearest_points, "robust_P_Value_Marginal", data$var_colnames, data$cat_interactions)
     })
   })
   
@@ -295,27 +315,24 @@ server <- function(input, output, session) {
       variantTable_box("mb_interaction_manhattan_plot_table")
     })
     
-    data$mb_interaction_nearest_points <- nearPoints(data$df, 
-                                               input$mb_interaction_manhattan_plot_click,
-                                               xvar = "cumulative_pos", 
-                                               yvar = "P_Value_Interaction")
+    data$mb_interaction_nearest_points <- nearPoints(data$df, input$mb_interaction_manhattan_plot_click,
+                                                     xvar = "cumulative_pos", yvar = "P_Value_Interaction")
     
     output$mb_interaction_manhattan_plot_table <- DT::renderDT({
-      variant_table(data$mb_interaction_nearest_points, "P_Value_Interaction", data$var_colnames, data$cat_interactions)
+      variantTable(data$mb_interaction_nearest_points, "P_Value_Interaction", data$var_colnames, data$cat_interactions)
     })
   })
+  
   observeEvent(input$rb_interaction_manhattan_plot_click, {
     output$rb_interaction_variants_table <- renderUI({
       variantTable_box("rb_interaction_manhattan_plot_table")
     })
     
-    data$rb_interaction_nearest_points <- nearPoints(data$df, 
-                                               input$rb_interaction_manhattan_plot_click,
-                                               xvar = "cumulative_pos", 
-                                               yvar = "robust_P_Value_Interaction")
+    data$rb_interaction_nearest_points <- nearPoints(data$df, input$rb_interaction_manhattan_plot_click,
+                                                     xvar = "cumulative_pos", yvar = "robust_P_Value_Interaction")
     
     output$rb_interaction_manhattan_plot_table <- DT::renderDT({
-      variant_table(data$rb_interaction_nearest_points, "robust_P_Value_Interaction", data$var_colnames, data$cat_interactions)
+      variantTable(data$rb_interaction_nearest_points, "robust_P_Value_Interaction", data$var_colnames, data$cat_interactions)
     })
   })
   
@@ -324,88 +341,82 @@ server <- function(input, output, session) {
       variantTable_box("mb_joint_manhattan_plot_table")
     })
 
-    data$mb_joint_nearest_points <- nearPoints(data$df, 
-                                               input$mb_joint_manhattan_plot_click,
-                                               xvar = "cumulative_pos", 
-                                               yvar = "P_Value_Joint")
+    data$mb_joint_nearest_points <- nearPoints(data$df, input$mb_joint_manhattan_plot_click,
+                                               xvar = "cumulative_pos", yvar = "P_Value_Joint")
     
     output$mb_joint_manhattan_plot_table <- DT::renderDT({
-      variant_table(data$mb_joint_nearest_points, "P_Value_Joint", data$var_colnames, data$cat_interactions)
+      variantTable(data$mb_joint_nearest_points, "P_Value_Joint", data$var_colnames, data$cat_interactions)
     })
   })
+  
   observeEvent(input$rb_joint_manhattan_plot_click, {
     output$rb_joint_variants_table <- renderUI({
       variantTable_box("rb_joint_manhattan_plot_table")
     })
     
-    data$rb_joint_nearest_points <- nearPoints(data$df, 
-                                               input$rb_joint_manhattan_plot_click,
-                                               xvar = "cumulative_pos", 
-                                               yvar = "robust_P_Value_Joint")
+    data$rb_joint_nearest_points <- nearPoints(data$df, input$rb_joint_manhattan_plot_click,
+                                               xvar = "cumulative_pos", yvar = "robust_P_Value_Joint")
     
     output$rb_joint_manhattan_plot_table <- DT::renderDT({
-      variant_table(data$rb_joint_nearest_points, "robust_P_Value_Joint", data$var_colnames, data$cat_interactions)
+      variantTable(data$rb_joint_nearest_points, "robust_P_Value_Joint", data$var_colnames, data$cat_interactions)
     })
   })
   
   
   
-  # UI - Summary Statistics Tables ---------------------------------------------
+  # Summary Statistics Tables --------------------------------------------------
   observeEvent(input$mb_marginal_manhattan_plot_table_rows_selected, {
     row <- input$mb_marginal_manhattan_plot_table_rows_selected
-    
-    output$mb_marginal_ss_tables <- renderUI({
-      ssTable_box(data$mb_marginal_nearest_points$SNPID[row], "mb_marginal_ss_table")
+    output$mb_marginal_ssTables <- renderUI({
+      ssTable_box(data$mb_marginal_nearest_points$SNPID[row], "mb_marginal_ssTable")
     })
     
-    ss_tables(output, "mb", "marginal", data$mb_marginal_nearest_points, row, data$int_colnames, data$beta_columns, data$se_columns, data$covariances, data$cov_rownames)
+    ssTables(output, "mb", "marginal", data$mb_marginal_nearest_points, row, data$int_colnames, data$beta_columns, data$se_columns, data$covariances, data$cov_rownames)
   })
+  
   observeEvent(input$rb_marginal_manhattan_plot_table_rows_selected, {
     row <- input$rb_marginal_manhattan_plot_table_rows_selected
-    
-    output$rb_marginal_ss_tables <- renderUI({
-      ssTable_box(data$rb_marginal_nearest_points$SNPID[row], "rb_marginal_ss_table")
+    output$rb_marginal_ssTables <- renderUI({
+      ssTable_box(data$rb_marginal_nearest_points$SNPID[row], "rb_marginal_ssTable")
     })
     
-    ss_tables(output, "rb", "marginal", data$rb_marginal_nearest_points, row, data$int_colnames, data$beta_columns, data$robust_se_columns, data$robust_covariances, data$robust_cov_rownames)
+    ssTables(output, "rb", "marginal", data$rb_marginal_nearest_points, row, data$int_colnames, data$beta_columns, data$robust_se_columns, data$robust_covariances, data$robust_cov_rownames)
   })
   
   observeEvent(input$mb_interaction_manhattan_plot_table_rows_selected, {
     row <- input$mb_interaction_manhattan_plot_table_rows_selected
-    
-    output$mb_interaction_ss_tables <- renderUI({
-      ssTable_box(data$mb_interaction_nearest_points$SNPID[row], "mb_interaction_ss_table")
+    output$mb_interaction_ssTables <- renderUI({
+      ssTable_box(data$mb_interaction_nearest_points$SNPID[row], "mb_interaction_ssTable")
     })
     
-    ss_tables(output, "mb", "interaction", data$mb_interaction_nearest_points, row, data$int_colnames, data$beta_columns, data$se_columns, data$covariances, data$cov_rownames)
+    ssTables(output, "mb", "interaction", data$mb_interaction_nearest_points, row, data$int_colnames, data$beta_columns, data$se_columns, data$covariances, data$cov_rownames)
   })
+  
   observeEvent(input$rb_interaction_manhattan_plot_table_rows_selected, {
     row <- input$rb_interaction_manhattan_plot_table_rows_selected
-    
-    output$rb_interaction_ss_tables <- renderUI({
-      ssTable_box(data$rb_interaction_nearest_points$SNPID[row], "rb_interaction_ss_table")
+    output$rb_interaction_ssTables <- renderUI({
+      ssTable_box(data$rb_interaction_nearest_points$SNPID[row], "rb_interaction_ssTable")
     })
     
-    ss_tables(output, "rb", "interaction", data$rb_interaction_nearest_points, row, data$int_colnames, data$beta_columns, data$robust_se_columns, data$robust_covariances, data$robust_cov_rownames)
+    ssTables(output, "rb", "interaction", data$rb_interaction_nearest_points, row, data$int_colnames, data$beta_columns, data$robust_se_columns, data$robust_covariances, data$robust_cov_rownames)
   })
   
   observeEvent(input$mb_joint_manhattan_plot_table_rows_selected, {
     row <- input$mb_joint_manhattan_plot_table_rows_selected
-    
-    output$mb_joint_ss_tables <- renderUI({
-      ssTable_box(data$mb_joint_nearest_points$SNPID[row], "mb_joint_ss_table")
+    output$mb_joint_ssTables <- renderUI({
+      ssTable_box(data$mb_joint_nearest_points$SNPID[row], "mb_joint_ssTable")
     })
     
-    ss_tables(output, "mb", "joint", data$mb_joint_nearest_points, row, data$int_colnames, data$beta_columns, data$se_columns, data$covariances, data$cov_rownames)
+    ssTables(output, "mb", "joint", data$mb_joint_nearest_points, row, data$int_colnames, data$beta_columns, data$se_columns, data$covariances, data$cov_rownames)
   })
+  
   observeEvent(input$rb_joint_manhattan_plot_table_rows_selected, {
     row <- input$rb_joint_manhattan_plot_table_rows_selected
-    
-    output$rb_joint_ss_tables <- renderUI({
-      ssTable_box(data$rb_joint_nearest_points$SNPID[row], "rb_joint_ss_table")
+    output$rb_joint_ssTables <- renderUI({
+      ssTable_box(data$rb_joint_nearest_points$SNPID[row], "rb_joint_ssTable")
     })
     
-    ss_tables(output, "rb", "joint", data$rb_joint_nearest_points, row, data$int_colnames, data$beta_columns, data$robust_se_columns, data$robust_covariances, data$robust_cov_rownames)
+    ssTables(output, "rb", "joint", data$rb_joint_nearest_points, row, data$int_colnames, data$beta_columns, data$robust_se_columns, data$robust_covariances, data$robust_cov_rownames)
   })
 }
 
