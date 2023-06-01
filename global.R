@@ -58,24 +58,20 @@ manhattan_box <- function(plotOutputId) {
   )
 }
 
-manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color, test, robust) {
+manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
   if (is.null(df)) {
     return(NULL)
   }
   
-  pcol <- ifelse(robust, paste0("robust_", paste0("P_Value_", test)), paste0("P_Value_", test))
-  y.max <- ceiling(max(df[,pcol])) + 5
-  colnames(df)[which(colnames(df) == pcol)] <- "PV"
+  y.max <- ceiling(max(df$LOGP)) + 5
   
-  ggplot(df, aes(x=cumulative_pos, y=PV)) +
+  ggplot(df, aes(x=POS, y=LOGP)) +
     geom_hline(yintercept = -log10(sig_threshold), color = sig_color, linetype = "dashed") +
     geom_point(color = chr_color$color, size = 2.5, alpha = 0.5) +
     ggtitle("") +
     xlab("Chromosome") +
     ylab(expression(-log[10](italic(p)))) +
-    scale_x_continuous(expand = c(0.01,0),
-                       breaks = x_breaks,
-                       labels = names(x_breaks)) +
+    scale_x_continuous(expand = c(0.01,0), breaks = x_breaks, labels = names(x_breaks)) +
     scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max), breaks = round(seq(0, y.max, length.out = 6))) +
     theme(panel.background = element_blank(),
           panel.grid       = element_line(color = "grey97"),
@@ -84,7 +80,7 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color, te
           axis.title.x     = element_text(margin =  margin(t = 10, r = , b = 0, l = 0)),
           axis.title.y     = element_text(margin =  margin(t = 0, r = 10, b = 0, l = 0)),
           axis.text        = element_text(size = 12, face = "bold"),
-          legend.position = "none")
+          legend.position  = "none")
 }
 
 manhattan_tooltip <- function (hover, df, pcol) {
@@ -128,18 +124,18 @@ qq_plot <- function(df, pcol) {
   if (is.null(df)) {
     return(NULL)
   }
-  
+  return(NULL)
   qq_df <- drop_dense(sort(df[[pcol]], decreasing = T), -log10(stats::ppoints(length(df))))
-  ggplot(qq_df, aes(x = y, y = x)) +
-    geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-    geom_point() +
-    theme(panel.background = element_blank(),
-          panel.grid       = element_line(color = "grey97"),
-          axis.line        = element_line(linewidth = 0.6),
-          axis.title       = element_text(size = 15, face = "bold"),
-          axis.text        = element_text(size = 12, face = "bold")) +
-    ylab(expression(paste('Observed ', -log[10](italic(p))))) +
-    xlab(expression(paste('Expected ', -log[10](italic(p)))))
+  # ggplot(qq_df, aes(x = y, y = x)) +
+  #   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+  #   geom_point() +
+  #   theme(panel.background = element_blank(),
+  #         panel.grid       = element_line(color = "grey97"),
+  #         axis.line        = element_line(linewidth = 0.6),
+  #         axis.title       = element_text(size = 15, face = "bold"),
+  #         axis.text        = element_text(size = 12, face = "bold")) +
+  #   ylab(expression(paste('Observed ', -log[10](italic(p))))) +
+  #   xlab(expression(paste('Expected ', -log[10](italic(p)))))
 }
 
 
@@ -282,91 +278,6 @@ ssTables <- function(output, se, test, df, row, int_colnames, beta_columns, se_c
 
 
 
-reduce_data <- function(ms, pcol) {
-  colnames(ms) <- c("CHR", "LOGP")
-  numc <- length(sort(unique(ms$CHR)));
-  
-  # part 3: reduce size for fast plotting --------------------------------------------------------------------------------------------------------------------------------------------
-  quants <- c(0,0.002,0.5,0.998,1); 
-  quants <- quantile(ms$LOGP, quants); # minimum, 0.2th percentile, median, 99.8th percentile and maximum are being calculated
-  right  <- (quants[5] - quants[4])/(quants[4] - quants[3]); # measure of significance of right tail
-  left   <- (quants[1] - quants[2])/(quants[2] - quants[3]); # measure of significance of left tail
-  if (nrow(ms) < 1E5) { #if there are lest than 100k rows then full data is rounded to 3 digits
-    digs <- 3; 
-    ms$LOGP <- round(ms$LOGP, digits=digs); 
-    ms      <-ms[!duplicated(ms$LOGP),]
-  }
-  else { # round lower and upper parts separately
-    if (right>0.1) {  # significant right tail
-      if (left>0.1) { # significant left tail
-        f1 <- ms$LOGP <= quants[4] & ms$LOGP >= quants[2];
-        digs1 <- 2; 
-        digs2 <- 3; 
-        digs  <- 0*f1 + digs2; 
-        digs[f1] <- digs1;
-        ms$LOGP  <- round(ms$LOGP, digits=digs); 
-        rm(digs);
-        f=NULL; #store vector of duplicated rows
-        for (i in 1:numc) {
-          m1 <- ms[ms$C==i, c("LOGP"), drop = FALSE]; # subset by chromosome for smaller memory
-          f1 <- duplicated(m1$LOGP);
-          f  <- c(f,f1);
-          rm(f1, m1);
-        }
-        ms <- ms[!f,]; 
-        rm(f);
-      }
-      else { # insignificant left tail
-        f1 <- ms$LOGP <= quants[4];
-        digs1 <- 2; 
-        digs2 <- 3; 
-        digs  <- 0*f1 + digs2; 
-        digs[f1] <- digs1;
-        ms$LOGP  <- round(ms$LOGP, digits=digs); 
-        rm(digs);
-        f=NULL; #store vector of duplicated rows
-        for (i in 1:numc) {
-          m1 <- ms[ms$C==i, c("LOGP"), drop = FALSE]; # subset by chromosome for smaller memory
-          f1 <- duplicated(m1$LOGP);
-          f  <- c(f,f1);
-          rm(f1, m1);
-        }
-        ms=ms[!f, ]; 
-        rm(f);
-      }
-    }
-    else { # insignificant right tail
-      if (left>0.1) { # significant left tail
-        f1 <- ms$LOGP >= quants[2];
-        digs1 <- 2; 
-        digs2 <- 3; 
-        digs  <- 0*f1 + digs2; 
-        digs[f1] <- digs1;
-        ms$LOGP  <- round(ms$LOGP, digits=digs); 
-        rm(digs);
-        f=NULL; #store vector of duplicated rows
-        for (i in 1:numc) {
-          m1 <- ms[ms$C==i,c("LOGP"), drop = FALSE]; # subset by chromosome for smaller memory
-          f1 <- duplicated(m1$LOGP);
-          f  <- c(f,f1);
-          rm(f1, m1);
-        }
-        ms=ms[!f,]; 
-        rm(f);
-      }
-      else { # insignificant left tail
-        digs <- 3;
-        ms$LOGP <- round(ms$LOGP, digits=digs);
-        ms <- ms[!duplicated(ms$LOGP),]; 
-      }
-    }
-  }
-  
-  return(ms)
-}
-
-
-
 # https://genome.ucsc.edu/goldenpath/help/hg38.chrom.sizes
 chrom_lengths_hg38=c("1"  = 248956422, "2"  = 242193529, "3"  = 198295559,
                      "4"  = 190214555, "5"  = 181538259, "6"  = 170805979,
@@ -378,9 +289,6 @@ chrom_lengths_hg38=c("1"  = 248956422, "2"  = 242193529, "3"  = 198295559,
                      "22" = 50818468,   "X" = 156040895,  "Y" = 57227415)
 
 
-extract_which_chr <- function(data_in){
-  unique(data_in$CHR)[order(match(unique(data_in$CHR), c(paste0("",1:22), "X", "Y")))]
-}
 
 get_cumulative_length <- function(chrom_lengths) {
   cumulative_length <- 0
@@ -405,13 +313,5 @@ get_x_breaks <- function(chrom_lengths) {
   }
   return(x_breaks)
 }
-
-add_cumulative_pos <- function(data_in, chrom_lengths) {
-  cumulative_length <- get_cumulative_length(chrom_lengths)
-  
-  tmp <- Map(function(x,y){x$cumulative_pos <- x$POS + y; return(x)}, 
-             split(data_in, data_in$CHR)[names(chrom_lengths)], get_cumulative_length(chrom_lengths)) 
-  return(do.call(rbind, tmp))
-}  
 
 

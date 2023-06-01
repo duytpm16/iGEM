@@ -31,19 +31,19 @@ ui <- dashboardPage(
         fluidRow(
           column(
             width = 9,
-            numericInput("mh_sigthreshold", label = "Significance Threshold", value = 1e-8, min = 0, max = 1),
+            numericInput("mh_sigThreshold", label = "Significance Threshold", value = 1e-8, min = 0, max = 1),
           )
         ),
         fluidRow(
           column(
             width = 9,
-            textInput("mh_sigcolor", label = "Significance Color", value = "red"),
+            textInput("mh_sigColor", label = "Significance Color", value = "red"),
           )
         ),
         fluidRow(
           column(
             width = 9,
-            textInput("mh_chrcolor", label = "Chromosome Colors",  value = "black;darkgray"),
+            textInput("mh_chrColor", label = "Chromosome Colors",  value = "black;darkgray"),
           )
         )
       )
