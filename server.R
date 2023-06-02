@@ -10,7 +10,6 @@ server <- function(input, output, session) {
                          rb_interaction = NULL,
                          mb_joint = NULL,
                          mb_joint_var_count = NULL,
-                         mb_joint_chr_color = NULL,
                          rb_joint = NULL,
                          rb_joint_var_count = NULL)
   
@@ -36,10 +35,7 @@ server <- function(input, output, session) {
     cum_chrom_lengths <- get_cumulative_length(chrom_lengths)
     df[, cumulative_pos := POS + cum_chrom_lengths[CHR]]
     
-    data$chr_var_count <- df[, .N, by = .(CHR)]
-    data$chr_var_count <- as.data.frame(data$chr_var_count)
   
-    
     # Convert P-values
     if ("P_Value_Joint" %in% df_colnames) {
       columnExists$p_value_joint = TRUE
@@ -48,15 +44,16 @@ server <- function(input, output, session) {
       subDF <- df[,c("CHR", "cumulative_pos", "P_Value_Joint")]
       subDF[, index := 1:n_df]
       
-      digs <- 3;
-      subDF[, round_pcol := round(P_Value_Joint, digits = digs)]
-      subDF[, round_pos  := plyr::round_any(cumulative_pos, 100000)]
-      subDF <- subDF[!(fduplicated(subDF$round_pos) & subDF$round_pcol < 5),]
+      if (n_df > 100000) {
+          digs <- 3;
+          subDF[, round_pcol := round(P_Value_Joint, digits = digs)]
+          subDF[, round_pos  := plyr::round_any(cumulative_pos, 100000)]
+          subDF <- subDF[!(fduplicated(subDF$round_pos) & subDF$round_pcol < 5),]
+      }
       colnames(subDF)[colnames(subDF) == "cumulative_pos"] <- "POS"
       colnames(subDF)[colnames(subDF) == "P_Value_Joint"]  <- "LOGP"
-      
-      data$mb_joint <- as.data.frame(subDF)
-      data$mb_joint_var_count <- as.data.frame(subdf[, .N, by = .(CHR)])
+      data$mb_joint <- as.data.frame(subDF[,c("index", "CHR", "POS", "LOGP")])
+      data$mb_joint_var_count <- as.data.frame(subDF[, .N, by = .(CHR)])
     }
     
     # df$P_Value_Marginal    <- -log10(df$P_Value_Marginal)
@@ -115,20 +112,42 @@ server <- function(input, output, session) {
   })
   
   mh_sigThreshold <- reactive({
-    input$mh_sigthreshold
+    input$mh_sigThreshold
   })
   
   mh_sigColor <- reactive({
-    input$mh_sigcolor
+    input$mh_sigColor
   })
   
-  
-  observeEvent(input$mh_chrColor, {
+  mh_chrColor <- reactive({
+    dfs <- list()
     colors <- strsplit(input$mh_chrColor, split = ";")[[1]]
     
-    nchr <- nrow(data$mb_joint_var_count)
-    cols <- rep(colors, ceiling(nchr / length(colors)))
-    data$mb_joint_chr_color <- rbindlist(lapply(1:nchr, function(x) data.frame(color = rep(cols[x], data$mb_joint_var_count$N[x]))))
+    if (!is.null(data$mb_marginal_var_count)) {
+      dfs$mb_marginal <- get_chr_colors(data$mb_marginal_var_count, colors)
+    }
+    
+    if (!is.null(data$rb_marginal_var_count)) {
+      dfs$rb_marginal <- get_chr_colors(data$rb_marginal_var_count, colors)
+    }
+    
+    if (!is.null(data$mb_interaction_var_count)) {
+      dfs$mb_interaction <- get_chr_colors(data$mb_interaction_var_count, colors)
+    }
+    
+    if (!is.null(data$rb_interaction_var_count)) {
+      dfs$rb_interaction <- get_chr_colors(data$rb_interaction_var_count, colors)
+    }
+    
+    if (!is.null(data$mb_joint_var_count)) {
+      dfs$mb_joint <- get_chr_colors(data$mb_joint_var_count, colors)
+    }
+    
+    if (!is.null(data$rb_joint_var_count)) {
+      dfs$rb_joint <- get_chr_colors(data$rb_joint_var_count, colors)
+    }
+    
+    return(dfs)
   })
   
   
@@ -211,55 +230,55 @@ server <- function(input, output, session) {
   
 
   # Manhattan Plot -------------------------------------------------------------
-  # output$mb_marginal_manhattan_plot <- renderPlot({
-  #   manhattan_plot(data$mb_marginal, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor())
-  # })
-  # 
-  # output$rb_marginal_manhattan_plot <- renderPlot({
-  #   manhattan_plot(data$rb_marginal, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor())
-  # })
-  # 
-  # output$mb_interaction_manhattan_plot <- renderPlot({
-  #   manhattan_plot(data$mb_interaction, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor())
-  # })
-  # 
-  # output$rb_interaction_manhattan_plot <- renderPlot({
-  #   manhattan_plot(data$rb_interaction, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor())
-  # })
-  #
-  output$mb_joint_manhattan_plot <- renderPlot({
-    manhattan_plot(data$mb_joint, data$x_breaks, mh_sigThreshold(), mh_sigColor(), data$mb_joint_chr_color)
+  output$mb_marginal_manhattan_plot <- renderPlot({
+    manhattan_plot(data$mb_marginal, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_marginal)
   })
-  #
-  # output$rb_joint_manhattan_plot <- renderPlot({
-  #   manhattan_plot(data$rb_joint, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor())
-  # })
+  
+  output$rb_marginal_manhattan_plot <- renderPlot({
+    manhattan_plot(data$rb_marginal, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_marginal)
+  })
+  
+  output$mb_interaction_manhattan_plot <- renderPlot({
+    manhattan_plot(data$mb_interaction, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_interaction)
+  })
+  
+  output$rb_interaction_manhattan_plot <- renderPlot({
+    manhattan_plot(data$rb_interaction, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_interaction)
+  })
+  
+  output$mb_joint_manhattan_plot <- renderPlot({
+    manhattan_plot(data$mb_joint, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_joint)
+  })
+
+  output$rb_joint_manhattan_plot <- renderPlot({
+    manhattan_plot(data$rb_joint, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_joint)
+  })
   
   
   
   # Manhattan Tooltip-----------------------------------------------------------
-  # output$mb_marginal_manhattan_plot_hover_info <- renderUI({
-  #   manhattan_tooltip(input[["mb_marginal_manhattan_plot_hover"]], data$df, "P_Value_Marginal")
-  # })
-  # 
-  # output$rb_marginal_manhattan_plot_hover_info <- renderUI({
-  #   manhattan_tooltip(input[["rb_marginal_manhattan_plot_hover"]], data$df, "robust_P_Value_Marginal")
-  # })
-  # 
-  # output$mb_interaction_manhattan_plot_hover_info <- renderUI({
-  #   manhattan_tooltip(input[["mb_interaction_manhattan_plot_hover"]], data$df, "P_Value_Interaction")
-  # })
-  # 
-  # output$rb_interaction_manhattan_plot_hover_info <- renderUI({
-  #   manhattan_tooltip(input[["rb_interaction_manhattan_plot_hover"]], data$df, "robust_P_Value_Interaction")
-  # })
-  # 
-  # output$mb_joint_manhattan_plot_hover_info <- renderUI({
-  #   manhattan_tooltip(input[["mb_joint_manhattan_plot_hover"]], data$df, "P_Value_Joint")
-  # })
+  output$mb_marginal_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input[["mb_marginal_manhattan_plot_hover"]], data$mb_marginal)
+  })
+
+  output$rb_marginal_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input[["rb_marginal_manhattan_plot_hover"]], data$rb_marginal)
+  })
+
+  output$mb_interaction_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input[["mb_interaction_manhattan_plot_hover"]], data$mb_interaction)
+  })
+
+  output$rb_interaction_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input[["rb_interaction_manhattan_plot_hover"]], data$rb_interaction)
+  })
+
+  output$mb_joint_manhattan_plot_hover_info <- renderUI({
+    manhattan_tooltip(input[["mb_joint_manhattan_plot_hover"]], data$mb_joint)
+  })
   
   output$rb_joint_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input[["rb_joint_manhattan_plot_hover"]], data$df, "robust_P_Value_Joint")
+    manhattan_tooltip(input[["rb_joint_manhattan_plot_hover"]], data$rb_joint)
   })
   
   

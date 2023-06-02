@@ -67,7 +67,7 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
   
   ggplot(df, aes(x=POS, y=LOGP)) +
     geom_hline(yintercept = -log10(sig_threshold), color = sig_color, linetype = "dashed") +
-    geom_point(color = chr_color$color, size = 2.5, alpha = 0.5) +
+    geom_point(color = chr_color, size = 2.5, alpha = 0.5) +
     ggtitle("") +
     xlab("Chromosome") +
     ylab(expression(-log[10](italic(p)))) +
@@ -83,13 +83,13 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
           legend.position  = "none")
 }
 
-manhattan_tooltip <- function (hover, df, pcol) {
+manhattan_tooltip <- function (hover, df) {
   if (is.null(df)) {
     return(NULL)
   }
   
   point <- nearPoints(df, hover, maxpoints =  1,
-                      xvar = "cumulative_pos",  yvar = pcol)
+                      xvar = "POS",  yvar = "LOGP")
   
   if (is.null(point) || nrow(point) == 0) return(NULL)
   
@@ -97,10 +97,10 @@ manhattan_tooltip <- function (hover, df, pcol) {
                   "left:", hover$coords_css$x + 2, "px; top:", hover$coords_css$y + 2, "px;")
   wellPanel(
     style = style,
-    p(HTML(paste0("<b> ID: </b>", point$SNPID, "<br/>",
+    p(HTML(paste0(#"<b> ID: </b>",  point$SNPID, "<br/>",
                   "<b> CHR: </b>", point$CHR, "<br/>",
                   "<b> POS: </b>", point$POS, "<br/>",
-                  "<b> -log10(p): </b>", format(round(point[,pcol], 2), nsmall = 2), "<br/>"))
+                  "<b> -log10(p): </b>", format(round(point$LOGP, 2), nsmall = 2), "<br/>"))
     )
   )
 }
@@ -314,4 +314,11 @@ get_x_breaks <- function(chrom_lengths) {
   return(x_breaks)
 }
 
+
+get_chr_colors <- function(df, colors) {
+  nchr <- nrow(df)
+  cols <- rep(colors, ceiling(nchr / length(colors)))
+  
+  return(unlist(lapply(1:nchr, function(x) data.frame(color = rep(cols[x], df$N[x])))))
+}
 
