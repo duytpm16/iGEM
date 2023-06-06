@@ -66,8 +66,8 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
   y.max <- ceiling(max(df$LOGP)) + 5
   
   ggplot(df, aes(x=POS, y=LOGP)) +
-    geom_hline(yintercept = -log10(sig_threshold), color = sig_color, linetype = "dashed") +
     geom_point(color = chr_color, size = 2.5, alpha = 0.5) +
+    geom_hline(yintercept = -log10(sig_threshold), color = sig_color, linetype = "dashed") +
     ggtitle("") +
     xlab("Chromosome") +
     ylab(expression(-log[10](italic(p)))) +
@@ -191,7 +191,7 @@ ssTable_box <- function(boxTitle, tableOutputPrefix) {
   )
 }
 
-ssTables <- function(output, se, test, df, row, int_colnames, beta_columns, se_columns, covariances, cov_rownames) {
+ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_columns, covariances, cov_rownames) {
   if (se == "mb") {
     ss_caption1 <- "Table 1: Coefficient Estimates and Model-based Standard Errors."
     ss_caption2 <- "Table 2: Model-based Covariances."
@@ -212,8 +212,8 @@ ssTables <- function(output, se, test, df, row, int_colnames, beta_columns, se_c
   
   
   beta_se <- list()
-  beta_se[["beta"]] <- df[row, beta_columns, drop = F]
-  beta_se[["se"]]   <- df[row, se_columns,   drop = F]
+  beta_se[["beta"]] <- df[, beta_columns, drop = F]
+  beta_se[["se"]]   <- df[, se_columns,   drop = F]
   beta_se <- rbindlist(beta_se, use.names = FALSE)
   beta_se <- signif(beta_se, digits = 6)
   output[[paste0(se, "_", test, "_ssTable1")]] <- DT::renderDT({
@@ -234,7 +234,7 @@ ssTables <- function(output, se, test, df, row, int_colnames, beta_columns, se_c
   })
   
   
-  covs <- cbind(cov_rownames, c(df[row, covariances, drop = T]))
+  covs <- cbind(cov_rownames, c(df[, covariances, drop = T]))
   output[[paste0(se, "_", test, "_ssTable2")]] <- DT::renderDT({
     DT::datatable(
       covs,
@@ -255,7 +255,7 @@ ssTables <- function(output, se, test, df, row, int_colnames, beta_columns, se_c
   })
 
   
-  pvals <- df[row, pcols]
+  pvals <- df[, pcols]
   pvals <- signif(10^-pvals, digits = 6)
   output[[paste0(se, "_", test, "_ssTable3")]] <- DT::renderDT({
     DT::datatable(
