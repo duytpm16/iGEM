@@ -74,8 +74,9 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
     scale_x_continuous(expand = c(0.01,0), breaks = x_breaks, labels = names(x_breaks)) +
     scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max), breaks = round(seq(0, y.max, length.out = 6))) +
     theme(panel.background = element_blank(),
+          panel.border     = element_rect(colour = "black", fill=NA, size=1.5),
           panel.grid       = element_line(color = "grey97"),
-          axis.line        = element_line(linewidth = 0.6),
+          axis.line        = element_blank(),
           axis.title       = element_text(size = 15),
           axis.title.x     = element_text(margin =  margin(t = 10, r = , b = 0, l = 0)),
           axis.title.y     = element_text(margin =  margin(t = 0, r = 10, b = 0, l = 0)),
@@ -211,9 +212,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
   }
   
   
-  beta_se <- list()
-  beta_se[["beta"]] <- df[, beta_columns, drop = F]
-  beta_se[["se"]]   <- df[, se_columns,   drop = F]
+  beta_se <- list(beta = df[, beta_columns], se = df[, se_columns])
   beta_se <- rbindlist(beta_se, use.names = FALSE)
   beta_se <- signif(beta_se, digits = 6)
   output[[paste0(se, "_", test, "_ssTable1")]] <- DT::renderDT({
@@ -305,11 +304,11 @@ get_x_breaks <- function(chrom_lengths) {
   x_breaks <-cumulative_length+round(chrom_lengths/2)
   names(x_breaks)=gsub('chr', '', names(x_breaks))
   if(length(chrom_lengths) == 21){
-    names(x_breaks)[20]=''
+    names(x_breaks)[20]='20'
   }
   if(length(chrom_lengths) > 21){
-    names(x_breaks)[20]=''
-    names(x_breaks)[22]=''
+    names(x_breaks)[20]='20'
+    names(x_breaks)[22]='22'
   }
   return(x_breaks)
 }
@@ -319,6 +318,22 @@ get_chr_colors <- function(df, colors) {
   nchr <- nrow(df)
   cols <- rep(colors, ceiling(nchr / length(colors)))
   
-  return(unlist(lapply(1:nchr, function(x) data.frame(color = rep(cols[x], df$N[x])))))
+  return(unlist(lapply(1:nchr, function(x) data.frame(color = rep(cols[x], df$n[x])))))
 }
 
+
+subset_data <- function(subDF, pcol, nvar) {
+  colnames(subDF)[colnames(subDF) == pcol]  <- "LOGP"
+  colnames(subDF)[colnames(subDF) == "cumulative_pos"] <- "POS"
+  
+  subDF[, index := 1:nvar]
+  if (nvar > 100000) {
+    subDF[, round_pcol := round(LOGP, digits = 3)]
+    subDF[, round_pos  := plyr::round_any(cumulative_pos, 100000)]
+    subDF <- subDF[!(fduplicated(subDF$round_pos) & fduplicated(subDF$round_pcol)),]
+  }
+  subDF <- as.data.frame(subDF[,c("index", "CHR", "POS", "LOGP")])
+  gc(verbose = FALSE)
+  
+  return(subDF)
+}
