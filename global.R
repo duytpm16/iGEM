@@ -74,7 +74,7 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
     scale_x_continuous(expand = c(0.01,0), breaks = x_breaks, labels = names(x_breaks)) +
     scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max), breaks = round(seq(0, y.max, length.out = 6))) +
     theme(panel.background = element_blank(),
-          panel.border     = element_rect(colour = "black", fill=NA, size=1.5),
+          panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
           panel.grid       = element_line(color = "grey97"),
           axis.line        = element_blank(),
           axis.title       = element_text(size = 15),
@@ -327,13 +327,12 @@ subset_data <- function(subDF, pcol, nvar) {
   colnames(subDF)[colnames(subDF) == "cumulative_pos"] <- "POS"
   
   subDF[, index := 1:nvar]
-  if (nvar > 100000) {
+  if (nvar > 100) {
     subDF[, round_pcol := round(LOGP, digits = 3)]
-    subDF[, round_pos  := plyr::round_any(cumulative_pos, 100000)]
-    subDF <- subDF[!(fduplicated(subDF$round_pos) & fduplicated(subDF$round_pcol)),]
+    subDF[, round_pos  := plyr::round_any(POS, 100000)]
+    subDF[, duplicated := (fduplicated(subDF$round_pos) & fduplicated(subDF$round_pcol))]
+    subDF <- subDF[!subDF$duplicated | subDF$LOGP > 8, ]
   }
-  subDF <- as.data.frame(subDF[,c("index", "CHR", "POS", "LOGP")])
-  gc(verbose = FALSE)
   
-  return(subDF)
+  return(as.data.frame(subDF))
 }
