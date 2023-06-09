@@ -62,6 +62,7 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
   if (is.null(df)) {
     return(NULL)
   }
+
   
   y.max <- ceiling(max(df$LOGP)) + 5
   
@@ -121,22 +122,24 @@ qq_box <- function(plotOutputId) {
   )
 }
 
-qq_plot <- function(df, pcol) {
+qq_plot <- function(df, h) {
   if (is.null(df)) {
     return(NULL)
   }
-  return(NULL)
-  qq_df <- drop_dense(sort(df[[pcol]], decreasing = T), -log10(stats::ppoints(length(df))))
-  # ggplot(qq_df, aes(x = y, y = x)) +
-  #   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-  #   geom_point() +
-  #   theme(panel.background = element_blank(),
-  #         panel.grid       = element_line(color = "grey97"),
-  #         axis.line        = element_line(linewidth = 0.6),
-  #         axis.title       = element_text(size = 15, face = "bold"),
-  #         axis.text        = element_text(size = 12, face = "bold")) +
-  #   ylab(expression(paste('Observed ', -log[10](italic(p))))) +
-  #   xlab(expression(paste('Expected ', -log[10](italic(p)))))
+
+  ggplot(df, aes(x = y, y = x)) +
+    geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+    geom_point() +
+    ggtitle(bquote(lambda==.(h))) +
+    theme(panel.background = element_blank(),
+          panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
+          panel.grid       = element_line(color = "grey97"),
+          plot.title       = element_text(size = 18, face = "bold", hjust = 0.1),
+          axis.line        = element_line(linewidth = 0.6),
+          axis.title       = element_text(size = 18, face = "bold"),
+          axis.text        = element_text(size = 15, face = "bold")) +
+    ylab(expression(paste('Observed ', -log[10](italic(p))))) +
+    xlab(expression(paste('Expected ', -log[10](italic(p)))))
 }
 
 
@@ -334,5 +337,5 @@ subset_data <- function(subDF, pcol, nvar) {
     subDF <- subDF[!subDF$duplicated | subDF$LOGP > 8, ]
   }
   
-  return(as.data.frame(subDF))
+  return(as.data.frame(subDF[,c("index", "CHR", "POS", "LOGP", "duplicated")]))
 }

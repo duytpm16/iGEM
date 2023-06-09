@@ -17,6 +17,13 @@ server <- function(input, output, session) {
                             mb_joint_var_count       = NULL,
                             rb_joint_var_count       = NULL)
   
+  qq_data <- reactiveValues(mb_marginal    = NULL,
+                            rb_marginal    = NULL,
+                            mb_interaction = NULL,
+                            rb_interaction = NULL,
+                            mb_joint       = NULL,
+                            rb_joint       = NULL)
+  
   columnExists <- reactiveValues(p_value_marginal           = FALSE,
                                  p_value_interaction        = FALSE,
                                  p_value_joint              = FALSE,
@@ -38,85 +45,122 @@ server <- function(input, output, session) {
     chrom_lengths     <- chrom_lengths_hg38[df[,kit::funique(CHR)]]
     cum_chrom_lengths <- get_cumulative_length(chrom_lengths)
     df[, cumulative_pos := POS + cum_chrom_lengths[CHR]]
+    df[, index := 1:nvar]
     gc(verbose = FALSE)
   
     ## P-values------------------------------------------------------------------
-    index <-
+    index <- c()
+    # P-values
     if ("P_Value_Marginal" %in% coln) {
       columnExists$p_value_marginal = TRUE
+      
+      qq_data$mb_marginal_lambda <- format(round(median(qchisq(1-df$P_Value_Marginal,1)) / qchisq(0.5, 1), 2), nsmall = 2)
+      
       df[, P_Value_Marginal := -log10(P_Value_Marginal)]
       
-      subDF <- subset_data(df[,c("CHR", "cumulative_pos", "P_Value_Marginal")], "P_Value_Marginal", nvar)
+      qq_data$mb_marginal <- fastqq::drop_dense(df$P_Value_Marginal, -log10(stats::ppoints(nvar)))
       
+      subDF <- subset_data(df[,c("CHR", "cumulative_pos", "P_Value_Marginal")], "P_Value_Marginal", nvar)
+  
       index <- c(index, subDF$index)
-      data$mb_marginal <- subDF[!subDF$duplicated, ]
-      data$mb_marginal_var_count <- dplyr::count(data$mb_marginal, CHR)
+      mh_data$mb_marginal <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP")]
+      mh_nvar$mb_marginal_var_count <- dplyr::count(mh_data$mb_marginal, CHR)
       gc(verbose = FALSE)
     }
     
     if ("robust_P_Value_Marginal" %in% coln) {
       columnExists$robust_p_value_marginal = TRUE
+      
+      qq_data$rb_marginal_lambda <- format(round(median(qchisq(1-df$robust_P_Value_Marginal,1)) / qchisq(0.5, 1), 2), nsmall = 2)
+      
       df[, robust_P_Value_Marginal := -log10(robust_P_Value_Marginal)]
+      
+      qq_data$rb_marginal <- fastqq::drop_dense(df$robust_P_Value_Marginal, -log10(stats::ppoints(nvar)))
       
       subDF <- subset_data(df[,c("CHR", "cumulative_pos", "robust_P_Value_Marginal")], "robust_P_Value_Marginal", nvar)
       
       index <- c(index, subDF$index)
-      data$rb_marginal <- subDF[!subDF$duplicated, ]
-      data$rb_marginal_var_count <- dplyr::count(data$rb_marginal, CHR)
+      mh_data$rb_marginal <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP")]
+      mh_nvar$rb_marginal_var_count <- dplyr::count(mh_data$rb_marginal, CHR)
       gc(verbose = FALSE)
     }
     
     if ("P_Value_Interaction" %in% coln) {
       columnExists$p_value_interaction = TRUE
+      
+      qq_data$mb_interaction_lambda <- format(round(median(qchisq(1-df$P_Value_Interaction, 1)) / qchisq(0.5, 1), 2), nsmall = 2)
+      
       df[, P_Value_Interaction := -log10(P_Value_Interaction)]
+      
+      qq_data$mb_interaction <- fastqq::drop_dense(df$P_Value_Interaction, -log10(stats::ppoints(nvar)))
       
       subDF <- subset_data(df[,c("CHR", "cumulative_pos", "P_Value_Interaction")], "P_Value_Interaction", nvar)
       
       index <- c(index, subDF$index)
-      data$mb_interaction <- subDF[!subDF$duplicated, ]
-      data$mb_interaction_var_count <- dplyr::count(data$mb_interaction, CHR)
+      mh_data$mb_interaction <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP") ]
+      mh_nvar$mb_interaction_var_count <- dplyr::count(mh_data$mb_interaction, CHR)
       gc(verbose = FALSE)
     }
     
     if ("robust_P_Value_Interaction" %in% coln) {
       columnExists$robust_p_value_interaction = TRUE
+      
+      qq_data$rb_interaction_lambda <- format(round(median(qchisq(1-df$robust_P_Value_Interaction, 1)) / qchisq(0.5, 1), 2), nsmall = 2)
+      
       df[, robust_P_Value_Interaction := -log10(robust_P_Value_Interaction)]
+      
+      qq_data$rb_interaction <- fastqq::drop_dense(df$robust_P_Value_Interaction, -log10(stats::ppoints(nvar)))
       
       subDF <- subset_data(df[,c("CHR", "cumulative_pos", "robust_P_Value_Interaction")], "robust_P_Value_Interaction", nvar)
       
       index <- c(index, subDF$index)
-      data$rb_interaction <- subDF[!subDF$duplicated, ]
-      data$rb_interaction_var_count <- dplyr::count(data$rb_interaction, CHR)
+      mh_data$rb_interaction <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP") ]
+      mh_nvar$rb_interaction_var_count <- dplyr::count(mh_data$rb_interaction, CHR)
       gc(verbose = FALSE)
     }
     
     if ("P_Value_Joint" %in% coln) {
       columnExists$p_value_joint = TRUE
+      
+      qq_data$mb_joint_lambda <- format(round(median(qchisq(1-df$P_Value_Joint, 1)) / qchisq(0.5, 1), 2), nsmall = 2)
+      
       df[, P_Value_Joint := -log10(P_Value_Joint)]
+      
+      qq_data$mb_joint <- fastqq::drop_dense(df$P_Value_Joint, -log10(stats::ppoints(nvar)))
       
       subDF <- subset_data(df[,c("CHR", "cumulative_pos", "P_Value_Joint")], "P_Value_Joint", nvar)
       
       index <- c(index, subDF$index)
-      data$mb_joint <- subDF[!subDF$duplicated, ]
-      data$mb_joint_var_count <- dplyr::count(data$mb_joint, CHR)
+      mh_data$mb_joint <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP") ]
+      mh_nvar$mb_joint_var_count <- dplyr::count(mh_data$mb_joint, CHR)
       gc(verbose = FALSE)
     }
     
     if ("robust_P_Value_Joint" %in% coln) {
       columnExists$robust_p_value_joint = TRUE
+      
+      qq_data$rb_joint_lambda <- format(round(median(qchisq(1-df$robust_P_Value_Joint, 1)) / qchisq(0.5, 1), 2), nsmall = 2)
+      
       df[, robust_P_Value_Joint := -log10(robust_P_Value_Joint)]
+      
+      qq_data$rb_joint <- fastqq::drop_dense(df$robust_P_Value_Joint, -log10(stats::ppoints(nvar)))
       
       subDF <- subset_data(df[,c("CHR", "cumulative_pos", "robust_P_Value_Joint")], "robust_P_Value_Joint", nvar)
       
       index <- c(index, subDF$index)
-      data$rb_joint <- subDF[!subDF$duplicated, ]
-      data$rb_joint_var_count <- dplyr::count(data$rb_joint, CHR)
+      mh_data$rb_joint <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP") ]
+      mh_nvar$rb_joint_var_count <- dplyr::count(mh_data$rb_joint, CHR)
       gc(verbose = FALSE)
     }
     
     index <- index[!fduplicated(index)]
     index <- index[order(index)]
+    
     df <- df[index, ]
+    df$new_index <- 1:nrow(df)
+    for (x in names(mh_data)) {
+      mh_data[[x]]$index <- df$new_index[match(mh_data[[x]]$index, df$index)]
+    }
     gc(verbose = FALSE)
     
     
@@ -369,27 +413,27 @@ server <- function(input, output, session) {
   
   # QQ Plot --------------------------------------------------------------------
   output$mb_marginal_qq_plot <- renderPlot({
-    qq_plot(data$df, "P_Value_Marginal")
+    qq_plot(qq_data$mb_marginal, qq_data$mb_marginal_lambda)
   })
   
   output$rb_marginal_qq_plot <- renderPlot({
-    qq_plot(data$df, "robust_P_Value_Marginal")
+    qq_plot(qq_data$rb_marginal, qq_data$rb_marginal_lambda)
   })
   
   output$mb_interaction_qq_plot <- renderPlot({
-    qq_plot(data$df, "P_Value_Interaction")
+    qq_plot(qq_data$mb_interaction, qq_data$mb_interaction_lambda)
   })
   
   output$rb_interaction_qq_plot <- renderPlot({
-    qq_plot(data$df, "robust_P_Value_Interaction")
+    qq_plot(qq_data$rb_interaction, qq_data$rb_interaction_lambda)
   })
   
   output$mb_joint_qq_plot <- renderPlot({
-    qq_plot(data$df, "P_Value_Joint")
+    qq_plot(qq_data$mb_joint, qq_data$mb_joint_lambda)
   })
   
   output$rb_joint_qq_plot <- renderPlot({
-    qq_plot(data$df, "robust_P_Value_Joint")
+    qq_plot(qq_data$rb_joint, qq_data$rb_joint_lambda)
   })
   
   
@@ -401,7 +445,7 @@ server <- function(input, output, session) {
     })
     
     data$mb_marginal_nearest_points <- nearPoints(mh_data$mb_marginal, input$mb_marginal_manhattan_plot_click,
-                                               xvar = "POS", yvar = "LOGP")
+                                                  xvar = "POS", yvar = "LOGP")
     
     output$mb_marginal_manhattan_plot_table <- DT::renderDT({
       variantTable(data$df[data$mb_marginal_nearest_points$index, ], "P_Value_Marginal", data$var_colnames, data$cat_interactions)
@@ -414,7 +458,7 @@ server <- function(input, output, session) {
     })
     
     data$rb_marginal_nearest_points <- nearPoints(mh_data$rb_marginal, input$rb_marginal_manhattan_plot_click,
-                                               xvar = "POS", yvar = "LOGP")
+                                                  xvar = "POS", yvar = "LOGP")
     
     output$rb_marginal_manhattan_plot_table <- DT::renderDT({
       variantTable(data$df[data$rb_marginal_nearest_points$index, ], "robust_P_Value_Marginal", data$var_colnames, data$cat_interactions)
@@ -427,7 +471,7 @@ server <- function(input, output, session) {
     })
     
     data$mb_interaction_nearest_points <- nearPoints(mh_data$mb_interaction, input$mb_interaction_manhattan_plot_click,
-                                               xvar = "POS", yvar = "LOGP")
+                                                     xvar = "POS", yvar = "LOGP")
     
     output$mb_interaction_manhattan_plot_table <- DT::renderDT({
       variantTable(data$df[data$mb_interaction_nearest_points$index, ], "P_Value_Interaction", data$var_colnames, data$cat_interactions)
@@ -440,7 +484,7 @@ server <- function(input, output, session) {
     })
     
     data$rb_interaction_nearest_points <- nearPoints(mh_data$rb_interaction, input$rb_interaction_manhattan_plot_click,
-                                               xvar = "POS", yvar = "LOGP")
+                                                     xvar = "POS", yvar = "LOGP")
     
     output$rb_interaction_manhattan_plot_table <- DT::renderDT({
       variantTable(data$df[data$rb_interaction_nearest_points$index, ], "robust_P_Value_Interaction", data$var_colnames, data$cat_interactions)
