@@ -374,8 +374,9 @@ server <- function(input, output, session) {
     manhattan_tooltip(input[["rb_interaction_manhattan_plot_hover"]], mh_data$rb_interaction)
   })
 
+
   output$mb_joint_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input[["mb_joint_manhattan_plot_hover"]], mh_data$mb_joint)
+      manhattan_tooltip(input[["mb_joint_manhattan_plot_hover"]], mh_data$mb_joint)
   })
   
   output$rb_joint_manhattan_plot_hover_info <- renderUI({

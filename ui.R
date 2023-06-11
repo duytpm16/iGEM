@@ -1,113 +1,104 @@
 options(shiny.maxRequestSize=6000*1024^2) 
 
-ui <- dashboardPage(
-  skin = "black",
+ui <- fluidPage(
+  theme = bs_theme(bootswatch = "lumen"),
   
-  # HEADER ------------------------------------------------------------------
+  navbarPage(
   
-  dashboardHeader(
-    # App title visible in browser tab
-    # App title visible
-    tags$li(class = "dropdown title", tags$h1("iGEM", style = "50px")),
-    # App current version
-    tags$li(class = "dropdown version", tags$p("1.0.0")),
-    # App time range
-    tags$li(class = "dropdown time-range", tags$p(""))
-  ),
-  
-  # SIDEBAR -----------------------------------------------------------------
-  
-  dashboardSidebar(
-    width = 300,
-    sidebarMenu(
-      fileInput("inputFile", h6("Input File:", style = "font-size: 20px; color: #000000"), 
-                accept = c("text/plain", ".txt", ".out")),
-      br(),
-      h5("Plot Configurations:",
-         style = "font-family: Source Sans Pro; padding-left:10px; font-size: 20px ;color: #000000;"),
-      menuItem(
-        h6("Manhattan", style = "font-family: Source Sans Pro; font-size: 20px; color: #000000"),
+    title = p("iGEM", style = "font-size: 30px; font-weight: bold; padding-top: 20px"),
+    theme = bs_theme(bootswatch = "lumen"),
+    tabPanel(
+      title = h4("GWIS", style = "padding-left: 20px; font-weight:bold;"),
+      # SIDEBAR -----------------------------------------------------------------
+      sidebarLayout(
+        sidebarPanel(
+          width = 2,
+          fileInput("inputFile", h5("Input File:", style = "font-weight: bold;"), 
+                    accept = c("text/plain", ".txt", ".out")),
+          br(),
+          h5("Manhattan Plot Configurations", style = "font-weight: bold;"),
+          fluidRow(
+            column(
+              width = 9,
+              numericInput("mh_sigThreshold", label = h6("Significance Threshold:", style = "font-weight: bold;"), value = 8, min = 0),
+            )
+          ),
+          fluidRow(
+            column(
+              width = 9,
+              textInput("mh_sigColor", label = h6("Significance Color:", style = "font-weight: bold;"), value = "red"),
+            )
+          ),
+          fluidRow(
+            column(
+              width = 9,
+              textInput("mh_chrColor", label = h6("Chromosome Colors:", style = "font-weight: bold;"),  value = "black;darkgray"),
+            )
+          )
+        ),
       
-        fluidRow(
-          column(
-            width = 9,
-            numericInput("mh_sigThreshold", label = "Significance Threshold", value = 1e-8, min = 0, max = 1),
-          )
-        ),
-        fluidRow(
-          column(
-            width = 9,
-            textInput("mh_sigColor", label = "Significance Color", value = "red"),
-          )
-        ),
-        fluidRow(
-          column(
-            width = 9,
-            textInput("mh_chrColor", label = "Chromosome Colors",  value = "black;darkgray"),
-          )
+      
+      # BODY --------------------------------------------------------------------
+      
+        mainPanel(
+          width = 10,
+          
+          useShinyjs(),
+          
+          tags$head(
+            tags$link(
+              rel = "stylesheet", 
+              type = "text/css", 
+              href = "style.css")
+          ),
+          
+          # MAIN BODY ---------------------------------------------------------------
+          
+          fluidRow(
+            column(
+              width = 12,
+              style = 'padding-left:0px; padding-right:0px; padding-top:10px; padding-bottom:0px',
+              bsButton("gwas", 
+                       label = "GWIS", 
+                       icon  = icon("chart-column"),
+                       style = "secondary")
+            )
+          ),
+          
+          
+          fluidRow(
+            id = "gwas_panel",
+            column(
+              width = 2,
+              style = 'padding-left:0px; padding-right:0px; padding-top:11px; padding-bottom:0px',
+              selectInput(inputId = "gwis_choice",
+                          label   = h5("Select a test:"),
+                          choices = c("Joint"       = "joint",
+                                      "Interaction" = "interaction",
+                                      "Marginal"    = "marginal"))
+            ),
+            column(
+              width = 6,
+              style = 'padding-left:10px; padding-right:0px; padding-top:11px; padding-bottom:0px',
+              selectInput(inputId = "se_choice",
+                          label   = h5("Select standard errors:"),
+                          choices = c("Model-based" = "modelbased",
+                                      "Robust"      = "robust"))
+            ),
+            br(),
+          ),
+          
+          hidden(fluid_design("mb", "marginal")),
+          hidden(fluid_design("rb", "marginal")),
+          hidden(fluid_design("mb", "interaction")),
+          hidden(fluid_design("rb", "interaction")),
+          hidden(fluid_design("mb", "joint")),
+          hidden(fluid_design("rb", "joint")),
+          br(),
+          br(),
+          br(),
         )
       )
     )
-  ),
-  
-  
-  # BODY --------------------------------------------------------------------
-  
-  dashboardBody(
-    tags$head(
-      tags$link(
-        rel = "stylesheet", 
-        type = "text/css", 
-        href = "radar_style.css")
-    ),
-    
-    useShinyjs(),
-    
-    # MAIN BODY ---------------------------------------------------------------
-    
-    fluidRow(
-      column(
-          width = 12,
-          style = 'padding-left:0px; padding-right:0px; padding-top:10px; padding-bottom:0px',
-          bsButton("gwas", 
-                   label = "GWIS", 
-                   icon  = icon("chart-column"),
-                   style = "success")
-      )
-    ),
-
-    tags$head(tags$style('.btn-default{ margin-left: -3px;border-radius: 5px; border: 2px solid black;}')),  # add the spacing,
-    fluidRow(
-        id = "gwas_panel",
-        column(
-            width = 12,
-            style = 'padding-left:0px; padding-right:0px; padding-top:11px; padding-bottom:0px',
-            selectInput(inputId = "gwis_choice",
-                        label   = "Select test:",
-                        choices = c("Joint"       = "joint",
-                                    "Interaction" = "interaction",
-                                    "Marginal"    = "marginal"))
-        ),
-        column(
-            width = 12,
-            style = 'padding-left:0px; padding-right:0px; padding-top:11px; padding-bottom:0px',
-            selectInput(inputId = "se_choice",
-                        label   = "Select standard errors:",
-                        choices = c("Model-based" = "modelbased",
-                                    "Robust"      = "robust"))
-        ),
-        br(),
-    ),
-    
-    hidden(fluid_design("mb", "marginal")),
-    hidden(fluid_design("rb", "marginal")),
-    hidden(fluid_design("mb", "interaction")),
-    hidden(fluid_design("rb", "interaction")),
-    hidden(fluid_design("mb", "joint")),
-    hidden(fluid_design("rb", "joint")),
-    
-    br(),
-    br(),
-    br(),
   )
 )

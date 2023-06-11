@@ -1,4 +1,5 @@
 # LIST OF REQUIRED PACKAGES -----------------------------------------------
+library(bslib)
 library(data.table)
 library(DT)
 library(ggplot2)
@@ -9,4 +10,6 @@ library(shinyBS)
 library(shinycssloaders)
 library(shinydashboard)
 library(shinyjs)
+library(shinythemes)
 library(fastqq)
+library(plotly)

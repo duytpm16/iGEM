@@ -11,28 +11,28 @@ fluid_design <- function(test, model) {
     div(
       fluidRow(
         column(
-          width  = 8,
+          width  = 7,
           offset = 0,
           style  = 'padding-left:0px; padding-right:0px; padding-top:0px; padding-bottom:0px',
           uiOutput(paste0(test, "_", model, "_", "manhattan_box"))
         ),
-        
         column(
           width  = 4,
           offset = 0, 
-          style  = 'padding-left:0px; padding-right:0px; padding-top:0px; padding-bottom:0px',
+          style  = 'padding-left:15px; padding-right:0px; padding-top:0px; padding-bottom:0px',
           uiOutput(paste0(test, "_", model, "_", "qq_box"))
         )
       ),
       fluidRow(
         column(width  = 6,
                offset = 0, 
-               style  = 'padding-left:0px; padding-right:0px; padding-top:25px; padding-bottom:0px',
-               uiOutput(paste0(test, "_", model, "_", "variants_table"))),
-        
-        column(width = 6,
-               style  = 'padding-left:0px; padding-right:0px; padding-top:25px; padding-bottom:0px',
-               uiOutput(paste0(test, "_", model, "_", "ssTables")))
+               style  = 'padding-left:0px; padding-right:0px; padding-top:20px; padding-bottom:0px',
+               uiOutput(paste0(test, "_", model, "_", "variants_table"))
+        ),
+        column(width = 5,
+               style  = 'padding-left:15px; padding-right:0px; padding-top:20px; padding-bottom:0px',
+               uiOutput(paste0(test, "_", model, "_", "ssTables"))
+        )
       )
     )
   )
@@ -40,18 +40,20 @@ fluid_design <- function(test, model) {
 
 
 manhattan_box <- function(plotOutputId) {
-  box(
-    title = p("Manhattan Plot", style = 'font-size:21px;'),
-    status = "primary",
-    collapsible = FALSE,
-    solidHeader = FALSE,
-    width = 12,
-    withSpinner(
-      fluidPage(
+  bslib::card(
+    class = "card border-secondary mb-3",
+    style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
+    card_header(
+      style = "font-size: 20px;",
+      "Manhattan Plot"
+    ),
+    card_body(
+      div(
+        style = "position:relative",
         plotOutput(plotOutputId, 
-                   height = 300,
+                   height = 315,
                    click  = paste0(plotOutputId, "_click"),
-                   hover  = hoverOpts(paste0(plotOutputId, "_hover"), delay = 50)),
+                   hover  = hoverOpts(paste0(plotOutputId,"_hover"), delay = 100, delayType = "debounce")),
         uiOutput(paste0(plotOutputId, "_hover_info"))
       )
     )
@@ -68,7 +70,7 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
   
   ggplot(df, aes(x=POS, y=LOGP)) +
     geom_point(color = chr_color, size = 2.5, alpha = 0.5) +
-    geom_hline(yintercept = -log10(sig_threshold), color = sig_color, linetype = "dashed") +
+    geom_hline(yintercept = sig_threshold, color = sig_color, linetype = "dashed") +
     ggtitle("") +
     xlab("Chromosome") +
     ylab(expression(-log[10](italic(p)))) +
@@ -78,10 +80,10 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
           panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
           panel.grid       = element_line(color = "grey97"),
           axis.line        = element_blank(),
-          axis.title       = element_text(size = 15),
+          axis.title       = element_text(size = 16),
           axis.title.x     = element_text(margin =  margin(t = 10, r = , b = 0, l = 0)),
           axis.title.y     = element_text(margin =  margin(t = 0, r = 10, b = 0, l = 0)),
-          axis.text        = element_text(size = 12, face = "bold"),
+          axis.text        = element_text(size = 14, face = "bold"),
           legend.position  = "none")
 }
 
@@ -99,8 +101,7 @@ manhattan_tooltip <- function (hover, df) {
                   "left:", hover$coords_css$x + 2, "px; top:", hover$coords_css$y + 2, "px;")
   wellPanel(
     style = style,
-    p(HTML(paste0(#"<b> ID: </b>",  point$SNPID, "<br/>",
-                  "<b> CHR: </b>", point$CHR, "<br/>",
+    p(HTML(paste0("<b> CHR: </b>", point$CHR, "<br/>",
                   "<b> POS: </b>", point$POS, "<br/>",
                   "<b> -log10(p): </b>", format(round(point$LOGP, 2), nsmall = 2), "<br/>"))
     )
@@ -109,15 +110,16 @@ manhattan_tooltip <- function (hover, df) {
 
 
 qq_box <- function(plotOutputId) {
-  box(
-    title = p("Quantile-Quantile Plot", style = 'font-size:21px;'),
-    status = "primary",
-    collapsible = FALSE,
-    solidHeader = FALSE,
-    width = 12,
-    withSpinner(
-      plotOutput(plotOutputId, 
-                 height = 300)
+  bslib::card(
+    class = "card border-secondary mb-3",
+    style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
+    card_header(
+      style = "font-size: 20px;",
+      "Quantile-Quantile Plot"
+    ),
+    card_body(
+      height = "350px",
+      plotOutput(plotOutputId, height = 315)
     )
   )
 }
@@ -134,9 +136,9 @@ qq_plot <- function(df, h) {
     theme(panel.background = element_blank(),
           panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
           panel.grid       = element_line(color = "grey97"),
-          plot.title       = element_text(size = 18, face = "bold", hjust = 0.1),
+          plot.title       = element_text(size = 18, face = "bold", hjust = 0.1, vjust = -15),
           axis.line        = element_line(linewidth = 0.6),
-          axis.title       = element_text(size = 18, face = "bold"),
+          axis.title       = element_text(size = 16, face = "bold"),
           axis.text        = element_text(size = 15, face = "bold")) +
     ylab(expression(paste('Observed ', -log[10](italic(p))))) +
     xlab(expression(paste('Expected ', -log[10](italic(p)))))
@@ -144,13 +146,14 @@ qq_plot <- function(df, h) {
 
 
 variantTable_box <- function(tableOutputId) {
-  box(
-    title = p("Variants in Region", style = 'font-size:21px;'),
-    status = "primary",
-    collapsible = FALSE,
-    solidHeader = FALSE,
-    width = 12,
-    withSpinner(
+  bslib::card(
+    class = "card border-secondary mb-3",
+    style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
+    card_header(
+      style = "font-size: 20px;",
+      "Variants in Manhattan Plot Region"
+    ),
+    card_body(
       dataTableOutput(tableOutputId, 
                       height = 400)
     )
@@ -163,16 +166,20 @@ variantTable <- function(df, pcol, variant_colnames, cat_interactions) {
     colnames  = variant_colnames,
     rownames  = FALSE,
     escape    = FALSE,
-    style     = "bootstrap",
     selection = 'single',
-    caption   = "Select a row to view the summary statistics",
+    caption   = htmltools::tags$caption(
+                  style = 'caption-side: top; text-align: left;',
+                  "Select a row to view the summary statistics."
+                ),
     options   = list(
       dom = 'tp',
       search = list(regex = TRUE, caseInsensitive = TRUE),
       pageLength = 5,
-      ordering = TRUE,
+      ordering  = TRUE,
       stateSave = TRUE,
-      columnDefs = list(list(targets = "_all", className = "dt-center"))
+      autoWidth = TRUE,
+      scrollX   = TRUE,
+      columnDefs = list(list(targets = "_all", className = "dt-center", width = "75px"))
     )
   ) %>% formatRound(columns=c(1), digits=2)
 }
@@ -180,17 +187,20 @@ variantTable <- function(df, pcol, variant_colnames, cat_interactions) {
 ssTable_box <- function(boxTitle, tableOutputPrefix) {
   tableOutputIds <- paste0(tableOutputPrefix, 1:3)
   
-  box(
-    title = p(boxTitle, style = 'font-size:21px;text-underline-position: under;text-decoration: underline;'),
-    status = "primary",
-    collapsible = FALSE,
-    solidHeader = FALSE,
-    width = 12,
-    tags$div(
-      class = "main-content-grid advanced-grid",
-      dataTableOutput(tableOutputIds[1]),
-      dataTableOutput(tableOutputIds[2]),
-      dataTableOutput(tableOutputIds[3]),
+  bslib::card(
+    class = "card border-secondary mb-3",
+    style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
+    card_header(
+      style = "font-size: 20px;",
+      boxTitle
+    ),
+    card_body(
+      div(
+        class = "main-content-grid advanced-grid",
+        dataTableOutput(tableOutputIds[1]),
+        dataTableOutput(tableOutputIds[2]),
+        dataTableOutput(tableOutputIds[3]),
+      )
     )
   )
 }
@@ -202,7 +212,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
     ss_caption3 <- "Table 3: Model-based P-Values."
     ss_colname2 <- c("", "Covariances")
     ss_rowname1 <- c("Coefficients", "SE")
-    ss_rowname3 <- c("P-Values")
+    ss_rowname3 <- c("P-Value")
     pcols <- c("P_Value_Marginal", "P_Value_Interaction", "P_Value_Joint")
   } else {
     ss_caption1 <- "Table 1: Coefficient Estimates and Robust Standard Errors."
@@ -210,14 +220,14 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
     ss_caption3 <- "Table 3: Robust P-Values."
     ss_colname2 <- c("", "Covariances<sub>R</sub>")
     ss_rowname1 <- c("Coefficients", "SE<sub>R</sub>")
-    ss_rowname3 <- c("P-Values<sub>R</sub>")
+    ss_rowname3 <- c("P-Value<sub>R</sub>")
     pcols <- c("robust_P_Value_Marginal", "robust_P_Value_Interaction", "robust_P_Value_Joint")
   }
   
   
   beta_se <- list(beta = df[, beta_columns], se = df[, se_columns])
   beta_se <- rbindlist(beta_se, use.names = FALSE)
-  beta_se <- signif(beta_se, digits = 6)
+  beta_se <- apply(beta_se, 2, FUN = function(x) {formatC(x, format = "e", digits = 2)})
   output[[paste0(se, "_", test, "_ssTable1")]] <- DT::renderDT({
     DT::datatable(
       beta_se,
@@ -226,7 +236,10 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
       escape    = FALSE, 
       style     = "bootstrap",
       selection = 'none',
-      caption   = ss_caption1,
+      caption   = htmltools::tags$caption(
+                    style = 'caption-side: top; text-align: left;',
+                    ss_caption1
+                  ),
       options   = list(
                     dom        = 't',
                     scrollX    = TRUE,
@@ -236,29 +249,33 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
   })
   
   
-  covs <- cbind(cov_rownames, c(df[, covariances, drop = T]))
+  covs <- df[, covariances, drop = FALSE]
+  covs[1, ] <- formatC(unlist(covs), format = "e", digits = 2)
   output[[paste0(se, "_", test, "_ssTable2")]] <- DT::renderDT({
     DT::datatable(
-      covs,
+      t(covs),
       colnames  = ss_colname2,
-      rownames  = FALSE,
+      rownames  = cov_rownames,
       escape    = FALSE,
       style     = "bootstrap",
       selection = 'none',
-      caption   = ss_caption2,
+      caption   = htmltools::tags$caption(
+                    style = 'caption-side: top; text-align: left;',
+                    ss_caption2
+                  ),
       options   = list(
                     dom        = 't',
                     scrollX    = TRUE,
                     scrollY    = "250px",
                     pageLength = 1000,
-                    columnDefs = list(list(className = "dt-right",  targets = 0, width = '125px'),
+                    columnDefs = list(list(className = "dt-right",  targets = 0, width = '200px'),
                                       list(className = "dt-center", targets = 1, width = '100px'))
                   ))
   })
 
   
   pvals <- df[, pcols]
-  pvals <- signif(10^-pvals, digits = 6)
+  pvals[1,] <- formatC(10^-unlist(pvals), format = "e", digits = 2)
   output[[paste0(se, "_", test, "_ssTable3")]] <- DT::renderDT({
     DT::datatable(
       pvals,
@@ -267,12 +284,18 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
       escape    = FALSE,
       style     = "bootstrap",
       selection = 'none',
-      caption   = ss_caption3,
+      caption   = htmltools::tags$caption(
+                    style = 'caption-side: top; text-align: left;',
+                    ss_caption3
+                  ),
       options   = list(
                     dom        = 't',
                     scrollX    = TRUE,
                     pageLength = 1,
-                    columnDefs = list(list(width = '150px', targets = "_all", className = "dt-center"))
+                    columnDefs = list(list(className = "dt-center", targets = 0, width = '100px'),
+                                      list(className = "dt-center", targets = 1, width = '100px'),
+                                      list(className = "dt-center", targets = 2, width = '100px'),
+                                      list(className = "dt-center", targets = 3, width = '100px'))
                   ))
   })
 }
