@@ -11,7 +11,7 @@ fluid_design <- function(test, model) {
     div(
       fluidRow(
         column(
-          width  = 7,
+          width  = 8,
           offset = 0,
           style  = 'padding-left:0px; padding-right:0px; padding-top:0px; padding-bottom:0px',
           uiOutput(paste0(test, "_", model, "_", "manhattan_box"))
@@ -26,11 +26,11 @@ fluid_design <- function(test, model) {
       fluidRow(
         column(width  = 6,
                offset = 0, 
-               style  = 'padding-left:0px; padding-right:0px; padding-top:20px; padding-bottom:0px',
+               style  = 'padding-left:0px; padding-right:0px; padding-top:0px; padding-bottom:0px;',
                uiOutput(paste0(test, "_", model, "_", "variants_table"))
         ),
-        column(width = 5,
-               style  = 'padding-left:15px; padding-right:0px; padding-top:20px; padding-bottom:0px',
+        column(width = 6,
+               style  = 'padding-left:15px; padding-right:0px; padding-top:0px; padding-bottom:0px;',
                uiOutput(paste0(test, "_", model, "_", "ssTables"))
         )
       )
@@ -49,7 +49,7 @@ manhattan_box <- function(plotOutputId) {
     ),
     card_body(
       div(
-        style = "position:relative",
+        style = "position: relative; overflow:hidden;",
         plotOutput(plotOutputId, 
                    height = 315,
                    click  = paste0(plotOutputId, "_click"),
@@ -118,7 +118,7 @@ qq_box <- function(plotOutputId) {
       "Quantile-Quantile Plot"
     ),
     card_body(
-      height = "350px",
+      height = "348px",
       plotOutput(plotOutputId, height = 315)
     )
   )
@@ -154,8 +154,7 @@ variantTable_box <- function(tableOutputId) {
       "Variants in Manhattan Plot Region"
     ),
     card_body(
-      dataTableOutput(tableOutputId, 
-                      height = 400)
+      dataTableOutput(tableOutputId, height = 400)
     )
   )
 }
@@ -184,17 +183,17 @@ variantTable <- function(df, pcol, variant_colnames, cat_interactions) {
   ) %>% formatRound(columns=c(1), digits=2)
 }
 
-ssTable_box <- function(boxTitle, tableOutputPrefix) {
+ssTable_box <- function(tableOutputPrefix) {
   tableOutputIds <- paste0(tableOutputPrefix, 1:3)
-  
   bslib::card(
     class = "card border-secondary mb-3",
     style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
     card_header(
       style = "font-size: 20px;",
-      boxTitle
+      "Summary Statistics"
     ),
     card_body(
+      uiOutput(paste0(tableOutputPrefix, "_title")),
       div(
         class = "main-content-grid advanced-grid",
         dataTableOutput(tableOutputIds[1]),
@@ -225,16 +224,30 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
   }
   
   
-  beta_se <- list(beta = df[, beta_columns], se = df[, se_columns])
-  beta_se <- rbindlist(beta_se, use.names = FALSE)
-  beta_se <- apply(beta_se, 2, FUN = function(x) {formatC(x, format = "e", digits = 2)})
+  if (!is.null(df) || nrow(df) != 0) {
+    beta_se <- list(beta = df[, beta_columns], se = df[, se_columns])
+    beta_se <- rbindlist(beta_se, use.names = FALSE)
+    beta_se <- apply(beta_se, 2, FUN = function(x) {formatC(x, format = "e", digits = 2)})
+    
+    covs <- df[, covariances, drop = FALSE]
+    covs <- formatC(unlist(covs), format = "e", digits = 2)
+
+    pvals <- df[, pcols, drop = FALSE]
+    pvals <- apply(pvals, 1, FUN = function(x) {formatC(10^-x, format = "e", digits = 2)})
+  }
+  
+  output[[paste0(se, "_", test, "_ssTable_title")]] <- renderText({
+    req(df)
+    HTML(paste0("<h3>", df$SNPID, "</h3>"))
+  })
+  
   output[[paste0(se, "_", test, "_ssTable1")]] <- DT::renderDT({
+    req(beta_se)
     DT::datatable(
       beta_se,
       colnames  = int_colnames,
       rownames  = ss_rowname1,
       escape    = FALSE, 
-      style     = "bootstrap",
       selection = 'none',
       caption   = htmltools::tags$caption(
                     style = 'caption-side: top; text-align: left;',
@@ -248,16 +261,13 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                   ))
   })
   
-  
-  covs <- df[, covariances, drop = FALSE]
-  covs[1, ] <- formatC(unlist(covs), format = "e", digits = 2)
   output[[paste0(se, "_", test, "_ssTable2")]] <- DT::renderDT({
+    req(covs)
     DT::datatable(
       t(covs),
       colnames  = ss_colname2,
       rownames  = cov_rownames,
       escape    = FALSE,
-      style     = "bootstrap",
       selection = 'none',
       caption   = htmltools::tags$caption(
                     style = 'caption-side: top; text-align: left;',
@@ -273,16 +283,14 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                   ))
   })
 
-  
-  pvals <- df[, pcols]
-  pvals[1,] <- formatC(10^-unlist(pvals), format = "e", digits = 2)
+
   output[[paste0(se, "_", test, "_ssTable3")]] <- DT::renderDT({
+    req(pvals)
     DT::datatable(
-      pvals,
+      t(pvals),
       rownames  = ss_rowname3,
       colnames  = c("Marginal", "Interaction", "Joint"),
       escape    = FALSE,
-      style     = "bootstrap",
       selection = 'none',
       caption   = htmltools::tags$caption(
                     style = 'caption-side: top; text-align: left;',

@@ -1,18 +1,19 @@
 options(shiny.maxRequestSize=6000*1024^2) 
 
 ui <- fluidPage(
-  theme = bs_theme(bootswatch = "lumen"),
+  theme = bs_theme(bootswatch = "simplex"),
   
   navbarPage(
-  
-    title = p("iGEM", style = "font-size: 30px; font-weight: bold; padding-top: 20px"),
-    theme = bs_theme(bootswatch = "lumen"),
+    
+    title = p("iGEM", style = "font-size: 30px; font-weight: bold; padding-top: 50px"),
+    theme = bs_theme(bootswatch = "simplex"),
     tabPanel(
       title = h4("GWIS", style = "padding-left: 20px; font-weight:bold;"),
       # SIDEBAR -----------------------------------------------------------------
       sidebarLayout(
         sidebarPanel(
           width = 2,
+          tags$style(".progress-bar{color: white;}"),
           fileInput("inputFile", h5("Input File:", style = "font-weight: bold;"), 
                     accept = c("text/plain", ".txt", ".out")),
           br(),
@@ -36,10 +37,10 @@ ui <- fluidPage(
             )
           )
         ),
-      
-      
-      # BODY --------------------------------------------------------------------
-      
+        
+        
+        # BODY --------------------------------------------------------------------
+        
         mainPanel(
           width = 10,
           

@@ -28,13 +28,9 @@
 
 
 .btn-secondary {
-    font-size: 25px;
-    padding: 5px 12px;
+    font-size: 28px;
     height: 55px;
-    min-width: 21.85%;
-    margin: 0px 10px 14px 20px;
+    min-width: 15%;
     text-align: left;
     text-indent: 4px;
-    vertical-align: middle;
 }
-
