@@ -17,7 +17,7 @@ ui <- fluidPage(
           fileInput("inputFile", h5("Input File:", style = "font-weight: bold;"), 
                     accept = c("text/plain", ".txt", ".out")),
           br(),
-          h5("Manhattan Plot Configurations", style = "font-weight: bold;"),
+          h5("Manhattan Plot:", style = "font-weight: bold;"),
           fluidRow(
             column(
               width = 9,

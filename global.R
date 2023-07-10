@@ -41,7 +41,7 @@ fluid_design <- function(test, model) {
 
 manhattan_box <- function(plotOutputId) {
   bslib::card(
-    class = "card border-secondary mb-3",
+    class = "card bg-secondary mb-3",
     style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
     card_header(
       style = "font-size: 20px;",
@@ -111,7 +111,7 @@ manhattan_tooltip <- function (hover, df) {
 
 qq_box <- function(plotOutputId) {
   bslib::card(
-    class = "card border-secondary mb-3",
+    class = "card bg-secondary mb-3",
     style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
     card_header(
       style = "font-size: 20px;",
@@ -147,7 +147,7 @@ qq_plot <- function(df, h) {
 
 variantTable_box <- function(tableOutputId) {
   bslib::card(
-    class = "card border-secondary mb-3",
+    class = "card bg-secondary mb-3",
     style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
     card_header(
       style = "font-size: 20px;",
@@ -186,7 +186,7 @@ variantTable <- function(df, pcol, variant_colnames, cat_interactions) {
 ssTable_box <- function(tableOutputPrefix) {
   tableOutputIds <- paste0(tableOutputPrefix, 1:3)
   bslib::card(
-    class = "card border-secondary mb-3",
+    class = "card bg-secondary mb-3",
     style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
     card_header(
       style = "font-size: 20px;",
