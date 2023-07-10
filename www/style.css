@@ -9,6 +9,7 @@
                         "table4 table3";
     grid-template-columns: 57% 43%;
     grid-template-rows: 185px 200px;
+    grid-row-gap: 2em;
 }
 
 .datatables > .dataTables_wrapper {

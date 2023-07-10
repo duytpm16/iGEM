@@ -254,17 +254,19 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                     ss_caption1
                   ),
       options   = list(
+                    autoWidth  = TRUE,
                     dom        = 't',
                     scrollX    = TRUE,
                     pageLength = 2,
-                    columnDefs = list(list(width = '300px', targets = "_all", className = "dt-center"))
-                  ))
+                    columnDefs = list(list(targets = "_all", className = "dt-center", width = "75px"))
+                  )
+      )
   })
   
   output[[paste0(se, "_", test, "_ssTable2")]] <- DT::renderDT({
     req(covs)
     DT::datatable(
-      t(covs),
+      as.data.frame(covs),
       colnames  = ss_colname2,
       rownames  = cov_rownames,
       escape    = FALSE,
@@ -275,12 +277,15 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                   ),
       options   = list(
                     dom        = 't',
+                    pageLength = 1000,
+                    ordering   = TRUE,
+                    stateSave  = TRUE,
+                    autoWidth  = TRUE,
                     scrollX    = TRUE,
                     scrollY    = "250px",
-                    pageLength = 1000,
-                    columnDefs = list(list(className = "dt-right",  targets = 0, width = '200px'),
-                                      list(className = "dt-center", targets = 1, width = '100px'))
-                  ))
+                    columnDefs = list(list(targets = "_all", className = "dt-center"))
+                  )
+      )
   })
 
 
@@ -297,14 +302,13 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                     ss_caption3
                   ),
       options   = list(
+                    autoWidth  = TRUE,
                     dom        = 't',
                     scrollX    = TRUE,
                     pageLength = 1,
-                    columnDefs = list(list(className = "dt-center", targets = 0, width = '100px'),
-                                      list(className = "dt-center", targets = 1, width = '100px'),
-                                      list(className = "dt-center", targets = 2, width = '100px'),
-                                      list(className = "dt-center", targets = 3, width = '100px'))
-                  ))
+                    columnDefs = list(list(targets = "_all", className = "dt-center"))
+                  )
+      )
   })
 }
 
