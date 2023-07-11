@@ -167,7 +167,7 @@ server <- function(input, output, session) {
     # Get interactions including marginal columns
     interactions <- c("Beta_Marginal", "Beta_G", coln[grepl("^Beta_G-", coln)])
     interactions <- gsub("Beta_", "", interactions)
-    int_colnames <- c("Marginal", "Main", gsub("[-]", " x ", interactions[grepl("^G[-]", interactions)]))
+    int_colnames <- c("Marginal", "Main", gsub("G[-]", "G x ", interactions[grepl("^G[-]", interactions)]))
     
     ## Betas and SE-------------------------------------------------------------
     data$mb_beta <- paste0("Beta_", interactions[-1])

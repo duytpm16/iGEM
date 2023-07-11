@@ -8,7 +8,7 @@
     grid-template-areas:"table2 table3" 
                         "table4 table3";
     grid-template-columns: 57% 43%;
-    grid-template-rows: 185px 200px;
+    grid-template-rows: 185px 185px;
     grid-row-gap: 2em;
 }
 

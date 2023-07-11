@@ -150,10 +150,11 @@ variantTable_box <- function(tableOutputId) {
     class = "card bg-secondary mb-3",
     style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
     card_header(
-      style = "font-size: 20px;",
+      style = "font-size: 20px",
       "Variants in Manhattan Plot Region"
     ),
     card_body(
+      style = "height: 435px",
       dataTableOutput(tableOutputId, height = 400)
     )
   )
@@ -193,6 +194,7 @@ ssTable_box <- function(tableOutputPrefix) {
       "Summary Statistics"
     ),
     card_body(
+      style = "height: 435px; overflow: hidden",
       uiOutput(paste0(tableOutputPrefix, "_title")),
       div(
         class = "main-content-grid advanced-grid",
