@@ -60,14 +60,14 @@ server <- function(input, output, session) {
       
       qq_data$mb_marginal <- fastqq::drop_dense(df$P_Value_Marginal, -log10(stats::ppoints(nvar)))
       
-      subDF <- subset_data(df[,c("CHR", "cumulative_pos", "P_Value_Marginal")], "P_Value_Marginal", nvar)
-  
+      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "P_Value_Marginal")], "P_Value_Marginal", nvar)
       index <- c(index, subDF$index)
-      mh_data$mb_marginal <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP")]
+
+      mh_data$mb_marginal <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP")]
       mh_nvar$mb_marginal_var_count <- dplyr::count(mh_data$mb_marginal, CHR)
       gc(verbose = FALSE)
     }
-    
+
     if ("robust_P_Value_Marginal" %in% coln) {
       columnExists$robust_p_value_marginal = TRUE
       
@@ -77,10 +77,10 @@ server <- function(input, output, session) {
       
       qq_data$rb_marginal <- fastqq::drop_dense(df$robust_P_Value_Marginal, -log10(stats::ppoints(nvar)))
       
-      subDF <- subset_data(df[,c("CHR", "cumulative_pos", "robust_P_Value_Marginal")], "robust_P_Value_Marginal", nvar)
+      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "robust_P_Value_Marginal")], "robust_P_Value_Marginal", nvar)
       
       index <- c(index, subDF$index)
-      mh_data$rb_marginal <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP")]
+      mh_data$rb_marginal <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP")]
       mh_nvar$rb_marginal_var_count <- dplyr::count(mh_data$rb_marginal, CHR)
       gc(verbose = FALSE)
     }
@@ -94,10 +94,10 @@ server <- function(input, output, session) {
       
       qq_data$mb_interaction <- fastqq::drop_dense(df$P_Value_Interaction, -log10(stats::ppoints(nvar)))
       
-      subDF <- subset_data(df[,c("CHR", "cumulative_pos", "P_Value_Interaction")], "P_Value_Interaction", nvar)
+      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "P_Value_Interaction")], "P_Value_Interaction", nvar)
       
       index <- c(index, subDF$index)
-      mh_data$mb_interaction <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP") ]
+      mh_data$mb_interaction <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP") ]
       mh_nvar$mb_interaction_var_count <- dplyr::count(mh_data$mb_interaction, CHR)
       gc(verbose = FALSE)
     }
@@ -111,10 +111,10 @@ server <- function(input, output, session) {
       
       qq_data$rb_interaction <- fastqq::drop_dense(df$robust_P_Value_Interaction, -log10(stats::ppoints(nvar)))
       
-      subDF <- subset_data(df[,c("CHR", "cumulative_pos", "robust_P_Value_Interaction")], "robust_P_Value_Interaction", nvar)
+      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "robust_P_Value_Interaction")], "robust_P_Value_Interaction", nvar)
       
       index <- c(index, subDF$index)
-      mh_data$rb_interaction <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP") ]
+      mh_data$rb_interaction <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP") ]
       mh_nvar$rb_interaction_var_count <- dplyr::count(mh_data$rb_interaction, CHR)
       gc(verbose = FALSE)
     }
@@ -128,10 +128,10 @@ server <- function(input, output, session) {
       
       qq_data$mb_joint <- fastqq::drop_dense(df$P_Value_Joint, -log10(stats::ppoints(nvar)))
       
-      subDF <- subset_data(df[,c("CHR", "cumulative_pos", "P_Value_Joint")], "P_Value_Joint", nvar)
+      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "P_Value_Joint")], "P_Value_Joint", nvar)
       
       index <- c(index, subDF$index)
-      mh_data$mb_joint <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP") ]
+      mh_data$mb_joint <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP") ]
       mh_nvar$mb_joint_var_count <- dplyr::count(mh_data$mb_joint, CHR)
       gc(verbose = FALSE)
     }
@@ -145,22 +145,22 @@ server <- function(input, output, session) {
       
       qq_data$rb_joint <- fastqq::drop_dense(df$robust_P_Value_Joint, -log10(stats::ppoints(nvar)))
       
-      subDF <- subset_data(df[,c("CHR", "cumulative_pos", "robust_P_Value_Joint")], "robust_P_Value_Joint", nvar)
+      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "robust_P_Value_Joint")], "robust_P_Value_Joint", nvar)
       
       index <- c(index, subDF$index)
-      mh_data$rb_joint <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "LOGP") ]
+      mh_data$rb_joint <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP") ]
       mh_nvar$rb_joint_var_count <- dplyr::count(mh_data$rb_joint, CHR)
       gc(verbose = FALSE)
     }
     
-    index <- index[!fduplicated(index)]
     index <- index[order(index)]
-    
+    index <- index[!fduplicated(index)]
     df <- df[index, ]
     df$new_index <- 1:nrow(df)
     for (x in names(mh_data)) {
       mh_data[[x]]$index <- df$new_index[match(mh_data[[x]]$index, df$index)]
     }
+
     gc(verbose = FALSE)
     
     
@@ -469,60 +469,60 @@ server <- function(input, output, session) {
   
   # Variant Table Nearest Points------------------------------------------------
   observeEvent(input$mb_marginal_manhattan_plot_click, {
-    data$mb_marginal_nearest_points <- nearPoints(mh_data$mb_marginal, input$mb_marginal_manhattan_plot_click, xvar = "POS", yvar = "LOGP")
+    data$mb_marginal_nearest_points <- nearPoints(data$df, input$mb_marginal_manhattan_plot_click, xvar = "cumulative_pos", yvar = "P_Value_Marginal")
   })
   
   observeEvent(input$rb_marginal_manhattan_plot_click, {
-    data$rb_marginal_nearest_points <- nearPoints(mh_data$rb_marginal, input$rb_marginal_manhattan_plot_click, xvar = "POS", yvar = "LOGP")
+    data$rb_marginal_nearest_points <- nearPoints(data$df, input$rb_marginal_manhattan_plot_click, xvar = "cumulative_pos", yvar = "robust_P_Value_Marginal")
   })
   
   observeEvent(input$mb_interaction_manhattan_plot_click, {
-    data$mb_interaction_nearest_points <- nearPoints(mh_data$mb_interaction, input$mb_interaction_manhattan_plot_click, xvar = "POS", yvar = "LOGP")
+    data$mb_interaction_nearest_points <- nearPoints(data$df, input$mb_interaction_manhattan_plot_click, xvar = "cumulative_pos", yvar = "P_Value_Interaction")
   })
   
   observeEvent(input$rb_interaction_manhattan_plot_click, {
-    data$rb_interaction_nearest_points <- nearPoints(mh_data$rb_interaction, input$rb_interaction_manhattan_plot_click, xvar = "POS", yvar = "LOGP")
+    data$rb_interaction_nearest_points <- nearPoints(data$df, input$rb_interaction_manhattan_plot_click, xvar = "cumulative_pos", yvar = "robust_P_Value_Interaction")
   })
   
   observeEvent(input$mb_joint_manhattan_plot_click, {
-    data$mb_joint_nearest_points <- nearPoints(mh_data$mb_joint, input$mb_joint_manhattan_plot_click, xvar = "POS", yvar = "LOGP")
+    data$mb_joint_nearest_points <- nearPoints(data$df, input$mb_joint_manhattan_plot_click, xvar = "cumulative_pos", yvar = "P_Value_Joint")
   })
   
   observeEvent(input$rb_joint_manhattan_plot_click, {
-    data$rb_joint_nearest_points <- nearPoints(mh_data$rb_joint, input$rb_joint_manhattan_plot_click, xvar = "POS", yvar = "LOGP")
+    data$rb_joint_nearest_points <- nearPoints(data$df, input$rb_joint_manhattan_plot_click, xvar = "cumulative_pos", yvar = "robust_P_Value_Joint")
   })
   
   
   
   # Variant Table---------------------------------------------------------------
   output$mb_marginal_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$mb_marginal_nearest_points$index, ])
-    variantTable(data$df[data$mb_marginal_nearest_points$index, ], "P_Value_Marginal", data$var_colnames, data$cat_interactions)
+    req(data$df[data$mb_marginal_nearest_points$new_index, ])
+    variantTable(data$df[data$mb_marginal_nearest_points$new_index, ], "P_Value_Marginal", data$var_colnames, data$cat_interactions)
   })
   
   output$rb_marginal_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$rb_marginal_nearest_points$index, ])
-    variantTable(data$df[data$rb_marginal_nearest_points$index, ], "robust_P_Value_Marginal", data$var_colnames, data$cat_interactions)
+    req(data$df[data$rb_marginal_nearest_points$new_index, ])
+    variantTable(data$df[data$rb_marginal_nearest_points$new_index, ], "robust_P_Value_Marginal", data$var_colnames, data$cat_interactions)
   })
   
   output$mb_interaction_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$mb_interaction_nearest_points$index, ])
-    variantTable(data$df[data$mb_interaction_nearest_points$index, ], "P_Value_Interaction", data$var_colnames, data$cat_interactions)
+    req(data$df[data$mb_interaction_nearest_points$new_index, ])
+    variantTable(data$df[data$mb_interaction_nearest_points$new_index, ], "P_Value_Interaction", data$var_colnames, data$cat_interactions)
   })
   
   output$rb_interaction_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$rb_interaction_nearest_points$index, ])
-    variantTable(data$df[data$rb_interaction_nearest_points$index, ], "robust_P_Value_Interaction", data$var_colnames, data$cat_interactions)
+    req(data$df[data$rb_interaction_nearest_points$new_index, ])
+    variantTable(data$df[data$rb_interaction_nearest_points$new_index, ], "robust_P_Value_Interaction", data$var_colnames, data$cat_interactions)
   })
   
   output$mb_joint_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$mb_joint_nearest_points$index, ])
-    variantTable(data$df[data$mb_joint_nearest_points$index, ], "P_Value_Joint", data$var_colnames, data$cat_interactions)
+    req(data$df[data$mb_joint_nearest_points$new_index, ])
+    variantTable(data$df[data$mb_joint_nearest_points$new_index, ], "P_Value_Joint", data$var_colnames, data$cat_interactions)
   })
   
   output$rb_joint_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$rb_joint_nearest_points$index, ])
-    variantTable(data$df[data$rb_joint_nearest_points$index, ], "robust_P_Value_Joint", data$var_colnames, data$cat_interactions)
+    req(data$df[data$rb_joint_nearest_points$new_index, ])
+    variantTable(data$df[data$rb_joint_nearest_points$new_index, ], "robust_P_Value_Joint", data$var_colnames, data$cat_interactions)
   })
   
   
@@ -557,31 +557,31 @@ server <- function(input, output, session) {
   # Variant Table Row Selected -------------------------------------------------
   observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected), {
     row <- input$mb_marginal_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "marginal", data$df[data$mb_marginal_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+    ssTables(output, "mb", "marginal", data$df[data$mb_marginal_nearest_points$new_index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected), {
     row <- input$rb_marginal_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "marginal", data$df[data$rb_marginal_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+    ssTables(output, "rb", "marginal", data$df[data$rb_marginal_nearest_points$new_index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected), {
     row <- input$mb_interaction_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "interaction", data$df[data$mb_interaction_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+    ssTables(output, "mb", "interaction", data$df[data$mb_interaction_nearest_points$new_index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected), {
     row <- input$rb_interaction_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "interaction", data$df[data$rb_interaction_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+    ssTables(output, "rb", "interaction", data$df[data$rb_interaction_nearest_points$new_index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected), {
     row <- input$mb_joint_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "joint", data$df[data$mb_joint_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+    ssTables(output, "mb", "joint", data$df[data$mb_joint_nearest_points$new_index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected), {
     row <- input$rb_joint_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "joint", data$df[data$rb_joint_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+    ssTables(output, "rb", "joint", data$df[data$rb_joint_nearest_points$new_index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
   })
 }

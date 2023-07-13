@@ -5,10 +5,10 @@ ui <- fluidPage(
   
   navbarPage(
     
-    title = p("iGEM", style = "font-size: 30px; font-weight: bold; padding-top: 50px"),
+    title = span("iGEM", style = "font-size: 30px; font-weight: bold;"),
     theme = bs_theme(bootswatch = "simplex"),
     tabPanel(
-      title = h4("GWIS", style = "padding-left: 20px; font-weight:bold;"),
+      title = span("GWIS", style = "padding-left: 20px; font-size: 20px; font-weight:bold;"),
       # SIDEBAR -----------------------------------------------------------------
       sidebarLayout(
         sidebarPanel(

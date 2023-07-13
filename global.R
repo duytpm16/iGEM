@@ -65,10 +65,9 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
     return(NULL)
   }
 
-  
   y.max <- ceiling(max(df$LOGP)) + 5
   
-  ggplot(df, aes(x=POS, y=LOGP)) +
+  ggplot(df, aes(x=CUMPOS, y=LOGP)) +
     geom_point(color = chr_color, size = 2.5, alpha = 0.5) +
     geom_hline(yintercept = sig_threshold, color = sig_color, linetype = "dashed") +
     ggtitle("") +
@@ -81,7 +80,7 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
           panel.grid       = element_line(color = "grey97"),
           axis.line        = element_blank(),
           axis.title       = element_text(size = 16),
-          axis.title.x     = element_text(margin =  margin(t = 10, r = , b = 0, l = 0)),
+          axis.title.x     = element_text(margin =  margin(t = 10, r = 0, b = 0, l = 0)),
           axis.title.y     = element_text(margin =  margin(t = 0, r = 10, b = 0, l = 0)),
           axis.text        = element_text(size = 14, face = "bold"),
           legend.position  = "none")
@@ -93,17 +92,29 @@ manhattan_tooltip <- function (hover, df) {
   }
   
   point <- nearPoints(df, hover, maxpoints =  1,
-                      xvar = "POS",  yvar = "LOGP")
+                      xvar = "CUMPOS",  yvar = "LOGP")
   
   if (is.null(point) || nrow(point) == 0) return(NULL)
   
-  style <- paste0("position:absolute; z-index:100; background-color: rgba(245, 245, 245, 0.85); ",
-                  "left:", hover$coords_css$x + 2, "px; top:", hover$coords_css$y + 2, "px;")
+  if (hover$coords_css$x <= 760 & hover$coords_css$y < 190) {
+    style <- paste0("width: 165px; position:absolute; z-index:100; background-color: rgba(245, 245, 245, 0.85); ",
+                    "left:", hover$coords_css$x + 2, "px; top:", hover$coords_css$y + 2, "px;")
+  } else if (hover$coords_css$x <= 760 & hover$coords_css$y >= 190) {
+    style <- paste0("width: 165px; position:absolute; z-index:100; background-color: rgba(245, 245, 245, 0.85); ",
+                    "left:", hover$coords_css$x + 3, "px; top:", hover$coords_css$y - 109, "px;")
+  } else if (hover$coords_css$x > 760 & hover$coords_css$y < 190) {
+    style <- paste0("width: 165px; position:absolute; z-index:100; background-color: rgba(245, 245, 245, 0.85); ",
+                    "left:", hover$coords_css$x - 168, "px; top:", hover$coords_css$y + 2, "px;")
+  } else if (hover$coords_css$x > 760 & hover$coords_css$y > 190) {
+    style <- paste0("width: 165px; position:absolute; z-index:100; background-color: rgba(245, 245, 245, 0.85); ",
+                    "left:", hover$coords_css$x - 168, "px; top:", hover$coords_css$y - 109, "px;")
+  }
+  
   wellPanel(
     style = style,
     p(HTML(paste0("<b> CHR: </b>", point$CHR, "<br/>",
                   "<b> POS: </b>", point$POS, "<br/>",
-                  "<b> -log10(p): </b>", format(round(point$LOGP, 2), nsmall = 2), "<br/>"))
+                  "<b> -log10(p): </b>", format(round(point$LOGP, 2), nsmall = 2)))
     )
   )
 }
@@ -350,6 +361,7 @@ get_x_breaks <- function(chrom_lengths) {
     names(x_breaks)[20]='20'
     names(x_breaks)[22]='22'
   }
+  
   return(x_breaks)
 }
 
@@ -364,15 +376,15 @@ get_chr_colors <- function(df, colors) {
 
 subset_data <- function(subDF, pcol, nvar) {
   colnames(subDF)[colnames(subDF) == pcol]  <- "LOGP"
-  colnames(subDF)[colnames(subDF) == "cumulative_pos"] <- "POS"
+  colnames(subDF)[colnames(subDF) == "cumulative_pos"] <- "CUMPOS"
   
   subDF[, index := 1:nvar]
   if (nvar > 100) {
     subDF[, round_pcol := round(LOGP, digits = 3)]
-    subDF[, round_pos  := plyr::round_any(POS, 100000)]
+    subDF[, round_pos  := plyr::round_any(CUMPOS, 100000)]
     subDF[, duplicated := (fduplicated(subDF$round_pos) & fduplicated(subDF$round_pcol))]
     subDF <- subDF[!subDF$duplicated | subDF$LOGP > 8, ]
   }
-  
-  return(as.data.frame(subDF[,c("index", "CHR", "POS", "LOGP", "duplicated")]))
+
+  return(as.data.frame(subDF[,c("index", "CHR", "POS", "CUMPOS", "LOGP", "duplicated")]))
 }
