@@ -24,12 +24,12 @@ server <- function(input, output, session) {
                             mb_joint       = NULL,
                             rb_joint       = NULL)
   
-  columnExists <- reactiveValues(p_value_marginal           = FALSE,
-                                 p_value_interaction        = FALSE,
-                                 p_value_joint              = FALSE,
-                                 robust_p_value_marginal    = FALSE,
-                                 robust_p_value_interaction = FALSE,
-                                 robust_p_value_joint       = FALSE)
+  columnExists <- reactiveValues(P_Value_Marginal           = FALSE,
+                                 P_Value_Interaction        = FALSE,
+                                 P_Value_Joint              = FALSE,
+                                 robust_P_Value_Marginal    = FALSE,
+                                 robust_P_Value_Interaction = FALSE,
+                                 robust_P_Value_Joint       = FALSE)
   
   # READ INPUT FILE ------------------------------------------------------------
   observeEvent(input$inputFile, {
@@ -50,117 +50,37 @@ server <- function(input, output, session) {
   
     ## P-values------------------------------------------------------------------
     index <- c()
-    # P-values
-    if ("P_Value_Marginal" %in% coln) {
-      columnExists$p_value_marginal = TRUE
+    pvalue_columns <- c("P_Value_Marginal",    "robust_P_Value_Marginal",
+                        "P_Value_Interaction", "robust_P_Value_Interaction",
+                        "P_Value_Joint",       "robust_P_Value_Joint")
+    
+    for (pcol in pvalue_columns) {
+      pcol_split <- strsplit(pcol, "_")[[1]]
+      se   <- ifelse(pcol_split[1] == "P", "mb", "rb")
+      test <- tolower(pcol_split[length(pcol_split)])
       
-      qq_data$mb_marginal_lambda <- format(round(median(qchisq(1-df$P_Value_Marginal,1)) / qchisq(0.5, 1), 2), nsmall = 2)
-      
-      df[, P_Value_Marginal := -log10(P_Value_Marginal)]
-      
-      qq_data$mb_marginal <- fastqq::drop_dense(df$P_Value_Marginal, -log10(stats::ppoints(nvar)))
-      
-      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "P_Value_Marginal")], "P_Value_Marginal", nvar)
-      index <- c(index, subDF$index)
-
-      mh_data$mb_marginal <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP")]
-      mh_nvar$mb_marginal_var_count <- dplyr::count(mh_data$mb_marginal, CHR)
-      gc(verbose = FALSE)
-    }
-
-    if ("robust_P_Value_Marginal" %in% coln) {
-      columnExists$robust_p_value_marginal = TRUE
-      
-      qq_data$rb_marginal_lambda <- format(round(median(qchisq(1-df$robust_P_Value_Marginal,1)) / qchisq(0.5, 1), 2), nsmall = 2)
-      
-      df[, robust_P_Value_Marginal := -log10(robust_P_Value_Marginal)]
-      
-      qq_data$rb_marginal <- fastqq::drop_dense(df$robust_P_Value_Marginal, -log10(stats::ppoints(nvar)))
-      
-      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "robust_P_Value_Marginal")], "robust_P_Value_Marginal", nvar)
-      
-      index <- c(index, subDF$index)
-      mh_data$rb_marginal <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP")]
-      mh_nvar$rb_marginal_var_count <- dplyr::count(mh_data$rb_marginal, CHR)
-      gc(verbose = FALSE)
+      if (pcol %in% coln) {
+        columnExists[[pcol]] = TRUE
+        
+        qq_data[[paste0(se, "_", test, "_lambda")]] <- format(round(median(qchisq(1-df[[pcol]],1)) / qchisq(0.5, 1), 2), nsmall = 2)
+        df[[pcol]] <- -log10(df[[pcol]])
+        qq_data[[paste0(se, "_", test)]] <- fastqq::drop_dense(df[[pcol]], -log10(stats::ppoints(nvar)))
+        
+        subDF <- subset_data(df[,c("index", "CHR", "POS", "cumulative_pos", pcol), with = FALSE], pcol, nvar)
+        index <- c(index, subDF$index)
+        subDF <- subDF[!subDF$duplicated, c("CHR", "POS", "CUMPOS", "LOGP")]
+        
+        mh_data[[paste0(se, "_", test)]] <- subDF
+        mh_nvar[[paste0(se, "_", test, "_var_count")]] <- dplyr::count(subDF, CHR)
+        gc(verbose = FALSE)
+      }
     }
     
-    if ("P_Value_Interaction" %in% coln) {
-      columnExists$p_value_interaction = TRUE
-      
-      qq_data$mb_interaction_lambda <- format(round(median(qchisq(1-df$P_Value_Interaction, 1)) / qchisq(0.5, 1), 2), nsmall = 2)
-      
-      df[, P_Value_Interaction := -log10(P_Value_Interaction)]
-      
-      qq_data$mb_interaction <- fastqq::drop_dense(df$P_Value_Interaction, -log10(stats::ppoints(nvar)))
-      
-      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "P_Value_Interaction")], "P_Value_Interaction", nvar)
-      
-      index <- c(index, subDF$index)
-      mh_data$mb_interaction <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP") ]
-      mh_nvar$mb_interaction_var_count <- dplyr::count(mh_data$mb_interaction, CHR)
-      gc(verbose = FALSE)
-    }
-    
-    if ("robust_P_Value_Interaction" %in% coln) {
-      columnExists$robust_p_value_interaction = TRUE
-      
-      qq_data$rb_interaction_lambda <- format(round(median(qchisq(1-df$robust_P_Value_Interaction, 1)) / qchisq(0.5, 1), 2), nsmall = 2)
-      
-      df[, robust_P_Value_Interaction := -log10(robust_P_Value_Interaction)]
-      
-      qq_data$rb_interaction <- fastqq::drop_dense(df$robust_P_Value_Interaction, -log10(stats::ppoints(nvar)))
-      
-      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "robust_P_Value_Interaction")], "robust_P_Value_Interaction", nvar)
-      
-      index <- c(index, subDF$index)
-      mh_data$rb_interaction <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP") ]
-      mh_nvar$rb_interaction_var_count <- dplyr::count(mh_data$rb_interaction, CHR)
-      gc(verbose = FALSE)
-    }
-    
-    if ("P_Value_Joint" %in% coln) {
-      columnExists$p_value_joint = TRUE
-      
-      qq_data$mb_joint_lambda <- format(round(median(qchisq(1-df$P_Value_Joint, 1)) / qchisq(0.5, 1), 2), nsmall = 2)
-      
-      df[, P_Value_Joint := -log10(P_Value_Joint)]
-      
-      qq_data$mb_joint <- fastqq::drop_dense(df$P_Value_Joint, -log10(stats::ppoints(nvar)))
-      
-      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "P_Value_Joint")], "P_Value_Joint", nvar)
-      
-      index <- c(index, subDF$index)
-      mh_data$mb_joint <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP") ]
-      mh_nvar$mb_joint_var_count <- dplyr::count(mh_data$mb_joint, CHR)
-      gc(verbose = FALSE)
-    }
-    
-    if ("robust_P_Value_Joint" %in% coln) {
-      columnExists$robust_p_value_joint = TRUE
-      
-      qq_data$rb_joint_lambda <- format(round(median(qchisq(1-df$robust_P_Value_Joint, 1)) / qchisq(0.5, 1), 2), nsmall = 2)
-      
-      df[, robust_P_Value_Joint := -log10(robust_P_Value_Joint)]
-      
-      qq_data$rb_joint <- fastqq::drop_dense(df$robust_P_Value_Joint, -log10(stats::ppoints(nvar)))
-      
-      subDF <- subset_data(df[,c("CHR", "POS", "cumulative_pos", "robust_P_Value_Joint")], "robust_P_Value_Joint", nvar)
-      
-      index <- c(index, subDF$index)
-      mh_data$rb_joint <- subDF[!subDF$duplicated, c("index", "CHR", "POS", "CUMPOS", "LOGP") ]
-      mh_nvar$rb_joint_var_count <- dplyr::count(mh_data$rb_joint, CHR)
-      gc(verbose = FALSE)
-    }
     
     index <- index[order(index)]
     index <- index[!fduplicated(index)]
     df <- df[index, ]
-    df$new_index <- 1:nrow(df)
-    for (x in names(mh_data)) {
-      mh_data[[x]]$index <- df$new_index[match(mh_data[[x]]$index, df$index)]
-    }
-
+    df$index <- 1:nrow(df)
     gc(verbose = FALSE)
     
     
@@ -170,11 +90,15 @@ server <- function(input, output, session) {
     int_colnames <- c("Marginal", "Main", gsub("G[-]", "G x ", interactions[grepl("^G[-]", interactions)]))
     
     ## Betas and SE-------------------------------------------------------------
-    data$mb_beta <- paste0("Beta_", interactions[-1])
-    data$rb_beta <- paste0("Beta_", interactions[-1])
-    data$mb_se   <- paste0("SE_Beta_", interactions[-1])
-    data$rb_se   <- paste0("robust_SE_Beta_", interactions[-1])
-    data$int_colnames <- int_colnames[-1]
+    data$mb_beta <- paste0("Beta_", interactions)
+    data$rb_beta <- data$mb_beta
+    if(any(grepl("^robust_Beta", coln))){
+      data$rb_beta <- paste0("robust_Beta_", interactions)
+    }
+    
+    data$mb_se   <- paste0("SE_Beta_", interactions)
+    data$rb_se   <- paste0("robust_SE_Beta_", interactions)
+    data$int_colnames <- int_colnames
     
     ## Covariance----------------------------------------------------------------
     covariances  <- unlist(lapply(combn(interactions[-1], 2, simplify = FALSE), FUN = function(x) {paste0(x[1], "_", x[2])}))
@@ -188,7 +112,7 @@ server <- function(input, output, session) {
     cat_interactions <- gsub("G[-]", "", interactions[-c(1,2)])
     cat_interactions <- coln[grepl(paste0("^N[_]", cat_interactions, collapse = "|"), coln)]
     cat_interactions <- gsub("N[_]", "", cat_interactions)
-    cat_n  <- paste0("<center>N<br>", gsub("[_]", " - ", cat_interactions), "</center>")
+    cat_n  <- paste0("<center>N<br>",  gsub("[_]", " - ", cat_interactions), "</center>")
     cat_af <- paste0("<center>AF<br>", gsub("[_]", " - ", cat_interactions), "</center>")
     cat_colnames <- unlist(lapply(1:length(cat_n), FUN = function(x) c(cat_n[x], cat_af[x])))
     var_colnames <- c("-log<SUB>10</SUB>(p)", "SNP ID", "CHROM", "POS", "<center>NON-EFFECT<br>ALLELE</center>", "<center>EFFECT<br>ALLELE</center>", "<center>N<br>SAMPLES</center>", "AF", cat_colnames)
@@ -201,7 +125,7 @@ server <- function(input, output, session) {
     
     # Manhattan plot data
     data$x_breaks <- get_x_breaks(chrom_lengths_hg38)
-  
+    
     data$df <- as.data.frame(df)
   })
   
@@ -221,6 +145,40 @@ server <- function(input, output, session) {
   })
   
   
+  # Button Updates--------------------------------------------------------------
+  button <- reactiveValues(gwis_clicked   = FALSE,
+                           mainxe_clicked = FALSE)
+  
+  observeEvent("", {
+    show("gwas_panel")
+    hide("mainxe_panel")
+    
+    updateButton(session,'gwas', style = "warning", icon = icon("chart-column"))
+  }, once = TRUE)
+  
+  observeEvent(input$gwas, {
+    show("gwas_panel")
+    hide("mainxe_panel")
+    if (!button$gwis_clicked) {
+      button$gwis_clicked   = TRUE
+      button$mainxe_clicked = FALSE
+      updateButton(session,'gwas',  style = "warning",   icon = icon("chart-column"))
+      updateButton(session,'mainxe',style = "secondary", icon = icon("chart-line"))
+    } 
+  })
+  
+  observeEvent(input$mainxe, {
+    hide("gwas_panel")
+    show("mainxe_panel")
+    if (!button$mainxe_clicked) {
+      button$gwis_clicked   = FALSE
+      button$mainxe_clicked = TRUE
+      updateButton(session,'gwas',  style = "secondary", icon = icon("chart-column"))
+      updateButton(session,'mainxe',style = "warning",   icon = icon("chart-line"))
+    } 
+  })
+  
+
   
   # GWIS Panels ----------------------------------------------------------------
   observeEvent(selectInputs(), {
@@ -496,33 +454,33 @@ server <- function(input, output, session) {
   
   # Variant Table---------------------------------------------------------------
   output$mb_marginal_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$mb_marginal_nearest_points$new_index, ])
-    variantTable(data$df[data$mb_marginal_nearest_points$new_index, ], "P_Value_Marginal", data$var_colnames, data$cat_interactions)
+    req(data$df[data$mb_marginal_nearest_points$index, ])
+    variantTable(data$df[data$mb_marginal_nearest_points$index, ], "P_Value_Marginal", data$var_colnames, data$cat_interactions)
   })
   
   output$rb_marginal_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$rb_marginal_nearest_points$new_index, ])
-    variantTable(data$df[data$rb_marginal_nearest_points$new_index, ], "robust_P_Value_Marginal", data$var_colnames, data$cat_interactions)
+    req(data$df[data$rb_marginal_nearest_points$index, ])
+    variantTable(data$df[data$rb_marginal_nearest_points$index, ], "robust_P_Value_Marginal", data$var_colnames, data$cat_interactions)
   })
   
   output$mb_interaction_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$mb_interaction_nearest_points$new_index, ])
-    variantTable(data$df[data$mb_interaction_nearest_points$new_index, ], "P_Value_Interaction", data$var_colnames, data$cat_interactions)
+    req(data$df[data$mb_interaction_nearest_points$index, ])
+    variantTable(data$df[data$mb_interaction_nearest_points$index, ], "P_Value_Interaction", data$var_colnames, data$cat_interactions)
   })
   
   output$rb_interaction_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$rb_interaction_nearest_points$new_index, ])
-    variantTable(data$df[data$rb_interaction_nearest_points$new_index, ], "robust_P_Value_Interaction", data$var_colnames, data$cat_interactions)
+    req(data$df[data$rb_interaction_nearest_points$index, ])
+    variantTable(data$df[data$rb_interaction_nearest_points$index, ], "robust_P_Value_Interaction", data$var_colnames, data$cat_interactions)
   })
   
   output$mb_joint_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$mb_joint_nearest_points$new_index, ])
-    variantTable(data$df[data$mb_joint_nearest_points$new_index, ], "P_Value_Joint", data$var_colnames, data$cat_interactions)
+    req(data$df[data$mb_joint_nearest_points$index, ])
+    variantTable(data$df[data$mb_joint_nearest_points$index, ], "P_Value_Joint", data$var_colnames, data$cat_interactions)
   })
   
   output$rb_joint_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$rb_joint_nearest_points$new_index, ])
-    variantTable(data$df[data$rb_joint_nearest_points$new_index, ], "robust_P_Value_Joint", data$var_colnames, data$cat_interactions)
+    req(data$df[data$rb_joint_nearest_points$index, ])
+    variantTable(data$df[data$rb_joint_nearest_points$index, ], "robust_P_Value_Joint", data$var_colnames, data$cat_interactions)
   })
   
   
@@ -557,31 +515,36 @@ server <- function(input, output, session) {
   # Variant Table Row Selected -------------------------------------------------
   observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected), {
     row <- input$mb_marginal_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "marginal", data$df[data$mb_marginal_nearest_points$new_index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+    ssTables(output, "mb", "marginal", data$df[data$mb_marginal_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected), {
     row <- input$rb_marginal_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "marginal", data$df[data$rb_marginal_nearest_points$new_index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+    ssTables(output, "rb", "marginal", data$df[data$rb_marginal_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected), {
     row <- input$mb_interaction_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "interaction", data$df[data$mb_interaction_nearest_points$new_index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+    ssTables(output, "mb", "interaction", data$df[data$mb_interaction_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected), {
     row <- input$rb_interaction_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "interaction", data$df[data$rb_interaction_nearest_points$new_index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+    ssTables(output, "rb", "interaction", data$df[data$rb_interaction_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected), {
     row <- input$mb_joint_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "joint", data$df[data$mb_joint_nearest_points$new_index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+    ssTables(output, "mb", "joint", data$df[data$mb_joint_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected), {
     row <- input$rb_joint_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "joint", data$df[data$rb_joint_nearest_points$new_index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+    ssTables(output, "rb", "joint", data$df[data$rb_joint_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
   })
+  
+  
+  
+  # Genotype Effect vs E--------------------------------------------------------
+  
 }

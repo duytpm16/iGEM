@@ -205,7 +205,7 @@ ssTable_box <- function(tableOutputPrefix) {
       "Summary Statistics"
     ),
     card_body(
-      style = "height: 435px; overflow: hidden",
+      style = "height: 438px; overflow: hidden",
       uiOutput(paste0(tableOutputPrefix, "_title")),
       div(
         class = "main-content-grid advanced-grid",
@@ -251,7 +251,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
   
   output[[paste0(se, "_", test, "_ssTable_title")]] <- renderText({
     req(df)
-    HTML(paste0("<h3>", df$SNPID, "</h3>"))
+    HTML(paste0("<h3><u>", df$SNPID, "</u></h3>"))
   })
   
   output[[paste0(se, "_", test, "_ssTable1")]] <- DT::renderDT({
@@ -319,7 +319,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                     dom        = 't',
                     scrollX    = TRUE,
                     pageLength = 1,
-                    columnDefs = list(list(targets = "_all", className = "dt-center"))
+                    columnDefs = list(list(targets = "_all", className = "dt-center", width = "75px"))
                   )
       )
   })
@@ -378,13 +378,10 @@ subset_data <- function(subDF, pcol, nvar) {
   colnames(subDF)[colnames(subDF) == pcol]  <- "LOGP"
   colnames(subDF)[colnames(subDF) == "cumulative_pos"] <- "CUMPOS"
   
-  subDF[, index := 1:nvar]
-  if (nvar > 100) {
-    subDF[, round_pcol := round(LOGP, digits = 3)]
-    subDF[, round_pos  := plyr::round_any(CUMPOS, 100000)]
-    subDF[, duplicated := (fduplicated(subDF$round_pos) & fduplicated(subDF$round_pcol))]
-    subDF <- subDF[!subDF$duplicated | subDF$LOGP > 8, ]
-  }
+  subDF[, round_pcol := round(LOGP, digits = 3)]
+  subDF[, round_pos  := plyr::round_any(CUMPOS, 100000)]
+  subDF[, duplicated := (fduplicated(subDF$round_pos) & fduplicated(subDF$round_pcol))]
+  subDF <- subDF[!subDF$duplicated | subDF$LOGP > 8, ]
 
   return(as.data.frame(subDF[,c("index", "CHR", "POS", "CUMPOS", "LOGP", "duplicated")]))
 }

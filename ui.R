@@ -4,10 +4,9 @@ ui <- fluidPage(
   theme = bs_theme(bootswatch = "simplex"),
   
   navbarPage(
-    
     title = span("iGEM", style = "font-size: 30px; font-weight: bold;"),
     theme = bs_theme(bootswatch = "simplex"),
-    tabPanel(
+    nav_panel(
       title = span("GWIS", style = "padding-left: 20px; font-size: 20px; font-weight:bold;"),
       # SIDEBAR -----------------------------------------------------------------
       sidebarLayout(
@@ -53,15 +52,19 @@ ui <- fluidPage(
               href = "style.css")
           ),
           tags$style(HTML('table.dataTable tr.active td, table.dataTable tr.active {background-color: red !important;}')),
-          # MAIN BODY ---------------------------------------------------------------
           
+          # MAIN BODY ---------------------------------------------------------------
           fluidRow(
             column(
               width = 12,
-              style = 'padding-left:0px; padding-right:0px; padding-top:10px; padding-bottom:0px',
+              style = 'padding-left:0px; padding-right:0px; padding-top:0px; padding-bottom:0px',
               bsButton("gwas", 
                        label = "GWIS", 
                        icon  = icon("chart-column"),
+                       style = "secondary"),
+              bsButton("mainxe", 
+                       label = "Main Effects vs E", 
+                       icon  = icon("chart-line"),
                        style = "secondary")
             )
           ),
@@ -87,17 +90,34 @@ ui <- fluidPage(
                                       "Robust"      = "robust"))
             ),
             br(),
+            hidden(fluid_design("mb", "marginal")),
+            hidden(fluid_design("rb", "marginal")),
+            hidden(fluid_design("mb", "interaction")),
+            hidden(fluid_design("rb", "interaction")),
+            hidden(fluid_design("mb", "joint")),
+            hidden(fluid_design("rb", "joint")),
           ),
           
-          hidden(fluid_design("mb", "marginal")),
-          hidden(fluid_design("rb", "marginal")),
-          hidden(fluid_design("mb", "interaction")),
-          hidden(fluid_design("rb", "interaction")),
-          hidden(fluid_design("mb", "joint")),
-          hidden(fluid_design("rb", "joint")),
+          fluidRow(
+            id = "mainxe_panel",
+            plotOutput("mainxe_plot")
+          ),
           br(),
           br(),
           br(),
+        )
+      )
+    ),
+    nav_item(
+      div(
+        id = "img-id",
+        tags$i(class = "fa-brands fa-github"),
+        a(
+          "ABOUT iGEM",
+          href = "https://github.com/duytpm16/iGEM",
+          title = "",
+          target = "_blank",
+          style = "color: black; text-decoration: none; font-size: 20px; font-weight: bold;"
         )
       )
     )
