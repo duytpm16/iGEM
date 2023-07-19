@@ -81,6 +81,7 @@ server <- function(input, output, session) {
     index <- index[!fduplicated(index)]
     df <- df[index, ]
     df$index <- 1:nrow(df)
+    rm(index)
     gc(verbose = FALSE)
     
     
@@ -108,19 +109,50 @@ server <- function(input, output, session) {
     data$mb_cov_rownames <- paste0("Cov(", cov_rownames, ")")
     data$rb_cov_rownames <- paste0("Cov<sub>R</sub>(", cov_rownames, ")")
     
-    ## Categorical---------------------------------------------------------------
-    cat_interactions <- gsub("G[-]", "", interactions[-c(1,2)])
+    ## Variant Info-------------------------------------------------------------
+    var_colnames <- c("-log<SUB>10</SUB>(p)", "SNP ID", "CHROM", "POS", "<center>NON-EFFECT<br>ALLELE</center>", "<center>EFFECT<br>ALLELE</center>", "<center>N<br>SAMPLES</center>", "AF")
+                      
+    ## Categorical--------------------------------------------------------------
+    cat_temp <- gsub("G[-]", "", interactions[-c(1,2)])
+    cat_interactions <- cat_temp
     cat_interactions <- coln[grepl(paste0("^N[_]", cat_interactions, collapse = "|"), coln)]
-    cat_interactions <- gsub("N[_]", "", cat_interactions)
-    cat_n  <- paste0("<center>N<br>",  gsub("[_]", " - ", cat_interactions), "</center>")
-    cat_af <- paste0("<center>AF<br>", gsub("[_]", " - ", cat_interactions), "</center>")
-    cat_colnames <- unlist(lapply(1:length(cat_n), FUN = function(x) c(cat_n[x], cat_af[x])))
-    var_colnames <- c("-log<SUB>10</SUB>(p)", "SNP ID", "CHROM", "POS", "<center>NON-EFFECT<br>ALLELE</center>", "<center>EFFECT<br>ALLELE</center>", "<center>N<br>SAMPLES</center>", "AF", cat_colnames)
-    
-    cat_n  <- paste0("N_", cat_interactions)
-    cat_af <- paste0("AF_", cat_interactions)
-    cat_interactions <- unlist(lapply(1:length(cat_n), FUN = function(x) c(cat_n[x], cat_af[x])))
-    data$cat_interactions <- cat_interactions
+    if (length(cat_interactions) == 0) {
+      data$mxi_df <- data.frame(i = unlist(lapply(cat_temp, FUN = function(x) rep(x, 7))),
+                                e = rep(-3:3, length(cat_temp)))
+      data$mxi_df$b <- paste0("Beta_G-", data$mxi_df$i)
+    } else {
+      cat_interactions <- gsub("N[_]", "", cat_interactions)
+      
+      tmp <- vector(mode = "list")
+      for (cat in cat_interactions){
+        cat_split <- strsplit(cat, "_")[[1]]
+        stratum <- as.numeric(cat_split[length(cat_split)])
+        intname <- paste0(cat_split[-length(cat_split)], collapse = "_")
+        tmp[[intname]] <- c(tmp[[intname]], stratum)
+      }
+      
+      tmp_i <- c()
+      tmp_e <- c()
+      for (x in cat_temp) {
+        if (x %in% names(tmp)) {
+          tmp_e <- c(tmp_e, c(0, tmp[[x]]))
+          tmp_i <- c(tmp_i, rep(x, length(tmp[[x]]) + 1))
+        } else {
+          tmp_e <- c(tmp_e, -3:3)
+          tmp_i <- c(tmp_i, rep(x, 7))
+        }
+      }
+      data$mxi_df <- data.frame(i = tmp_i, e = tmp_e, b = paste0("Beta_G-", tmp_i))
+      cat_n  <- paste0("<center>N<br>",  gsub("[_]", " - ", cat_interactions), "</center>")
+      cat_af <- paste0("<center>AF<br>", gsub("[_]", " - ", cat_interactions), "</center>")
+      cat_colnames <- unlist(lapply(1:length(cat_n), FUN = function(x) c(cat_n[x], cat_af[x])))
+      var_colnames <- c(var_colnames, cat_colnames)
+      
+      cat_n  <- paste0("N_", cat_interactions)
+      cat_af <- paste0("AF_", cat_interactions)
+      cat_interactions <- unlist(lapply(1:length(cat_n), FUN = function(x) c(cat_n[x], cat_af[x])))
+      data$cat_interactions <- cat_interactions
+    }
     data$var_colnames <- var_colnames
     
     # Manhattan plot data
@@ -151,31 +183,19 @@ server <- function(input, output, session) {
   
   observeEvent("", {
     show("gwas_panel")
-    hide("mainxe_panel")
-    
     updateButton(session,'gwas', style = "warning", icon = icon("chart-column"))
   }, once = TRUE)
   
   observeEvent(input$gwas, {
-    show("gwas_panel")
-    hide("mainxe_panel")
     if (!button$gwis_clicked) {
-      button$gwis_clicked   = TRUE
-      button$mainxe_clicked = FALSE
+      button$gwis_clicked = TRUE
       updateButton(session,'gwas',  style = "warning",   icon = icon("chart-column"))
-      updateButton(session,'mainxe',style = "secondary", icon = icon("chart-line"))
-    } 
-  })
-  
-  observeEvent(input$mainxe, {
-    hide("gwas_panel")
-    show("mainxe_panel")
-    if (!button$mainxe_clicked) {
-      button$gwis_clicked   = FALSE
-      button$mainxe_clicked = TRUE
-      updateButton(session,'gwas',  style = "secondary", icon = icon("chart-column"))
-      updateButton(session,'mainxe',style = "warning",   icon = icon("chart-line"))
-    } 
+      show("gwas_panel")
+    } else {
+      button$gwis_clicked = FALSE
+      updateButton(session,'gwas',  style = "secondary",   icon = icon("chart-column"))
+      hide("gwas_panel")
+    }
   })
   
 
@@ -515,36 +535,32 @@ server <- function(input, output, session) {
   # Variant Table Row Selected -------------------------------------------------
   observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected), {
     row <- input$mb_marginal_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "marginal", data$df[data$mb_marginal_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+    ssTables(output, "mb", "marginal", data$df[data$mb_marginal_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames, data$mxi_df)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected), {
     row <- input$rb_marginal_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "marginal", data$df[data$rb_marginal_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+    ssTables(output, "rb", "marginal", data$df[data$rb_marginal_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames, data$mxi_df)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected), {
     row <- input$mb_interaction_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "interaction", data$df[data$mb_interaction_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+    ssTables(output, "mb", "interaction", data$df[data$mb_interaction_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames, data$mxi_df)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected), {
     row <- input$rb_interaction_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "interaction", data$df[data$rb_interaction_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+    ssTables(output, "rb", "interaction", data$df[data$rb_interaction_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames, data$mxi_df)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected), {
     row <- input$mb_joint_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "joint", data$df[data$mb_joint_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+    ssTables(output, "mb", "joint", data$df[data$mb_joint_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames, data$mxi_df)
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected), {
     row <- input$rb_joint_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "joint", data$df[data$rb_joint_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+    ssTables(output, "rb", "joint", data$df[data$rb_joint_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames, data$mxi_df)
   })
-  
-  
-  
-  # Genotype Effect vs E--------------------------------------------------------
   
 }

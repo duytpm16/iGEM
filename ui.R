@@ -5,8 +5,7 @@ ui <- fluidPage(
   
   navbarPage(
     title = span("iGEM", style = "font-size: 30px; font-weight: bold;"),
-    theme = bs_theme(bootswatch = "simplex"),
-    nav_panel(
+    tabPanel(
       title = span("GWIS", style = "padding-left: 20px; font-size: 20px; font-weight:bold;"),
       # SIDEBAR -----------------------------------------------------------------
       sidebarLayout(
@@ -61,14 +60,9 @@ ui <- fluidPage(
               bsButton("gwas", 
                        label = "GWIS", 
                        icon  = icon("chart-column"),
-                       style = "secondary"),
-              bsButton("mainxe", 
-                       label = "Main Effects vs E", 
-                       icon  = icon("chart-line"),
                        style = "secondary")
             )
           ),
-          
           
           fluidRow(
             id = "gwas_panel",
@@ -96,11 +90,6 @@ ui <- fluidPage(
             hidden(fluid_design("rb", "interaction")),
             hidden(fluid_design("mb", "joint")),
             hidden(fluid_design("rb", "joint")),
-          ),
-          
-          fluidRow(
-            id = "mainxe_panel",
-            plotOutput("mainxe_plot")
           ),
           br(),
           br(),

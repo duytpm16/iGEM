@@ -27,12 +27,34 @@
   height: 75px;
 }
 
+.nav-tabs {
+  font-size: 18px;
+  font-weight: bold;
+  height: 40px;
+}
+
+.nav-tabs > li.active > a, .nav-tabs > li:hover > a {
+  color: #fff;
+  font-size: 20px;
+  font-weight: bold;
+  background: red;
+  height: 40px;
+  padding-top: 6px;
+}
+
+.nav-link, .nav-tabs >li > a, .nav-pills > li > a, ul.nav.navbar-nav>li>a {
+  color: black;
+  font-size: 18px;
+  font-weight: bold;
+  height: 40px;
+  padding-top: 6px;
+}
 
 .btn-secondary {
-    font-size: 18px;
+    font-size: 25px;
     padding: 5px 12px;
     height: 55px;
-    min-width: 21.85%;
+    min-width: 18%;
     margin: 0px 10px 14px 20px;
     text-align: left;
     text-indent: 4px;
@@ -48,11 +70,12 @@
 }
 
 .btn-warning, .btn-warning:hover {
-    background: #d1351b;
-    font-size: 18px;
+    background: red;
+    font-size: 25px;
+    font-weight: bold;
     padding: 5px 12px;
     height: 55px;
-    min-width: 21.85%;
+    min-width: 18%;
     margin: 0px 10px 14px 20px;
     text-align: left;
     text-indent: 4px;
@@ -66,6 +89,7 @@
     -webkit-transform: translate3d(0, 0, 0);
     transform: translate3d(0, 0, 0);
 }
+
 #img-id{
   position: absolute;
   right: 20px;

@@ -182,6 +182,7 @@ variantTable <- function(df, pcol, variant_colnames, cat_interactions) {
                   style = 'caption-side: top; text-align: left;',
                   "Select a row to view the summary statistics."
                 ),
+    style = 'bootstrap4', 
     options   = list(
       dom = 'tp',
       search = list(regex = TRUE, caseInsensitive = TRUE),
@@ -197,27 +198,45 @@ variantTable <- function(df, pcol, variant_colnames, cat_interactions) {
 
 ssTable_box <- function(tableOutputPrefix) {
   tableOutputIds <- paste0(tableOutputPrefix, 1:3)
-  bslib::card(
-    class = "card bg-secondary mb-3",
-    style = "box-shadow: 5px 10px #D3D3D3; font-weight: bold;",
-    card_header(
-      style = "font-size: 20px;",
-      "Summary Statistics"
-    ),
-    card_body(
-      style = "height: 438px; overflow: hidden",
-      uiOutput(paste0(tableOutputPrefix, "_title")),
-      div(
-        class = "main-content-grid advanced-grid",
-        dataTableOutput(tableOutputIds[1]),
-        dataTableOutput(tableOutputIds[2]),
-        dataTableOutput(tableOutputIds[3]),
-      )
+  
+  div(
+    style = "box-shadow: 5px 10px #D3D3D3; color: black;",
+    
+    bslib::navset_card_tab(
+      nav_panel(
+        title = "Summary Statistics",
+        card_body(
+          style = "height: 435px; overflow: hidden",
+          uiOutput(paste0(tableOutputPrefix, "_title")),
+          div(
+            class = "main-content-grid advanced-grid",
+            dataTableOutput(tableOutputIds[1]),
+            dataTableOutput(tableOutputIds[2]),
+            dataTableOutput(tableOutputIds[3]),
+          )
+        )
+      ),
+      nav_panel(
+        title = "Main Effects vs Interactions",
+        card_body(
+          style = "height: 435px; overflow: hidden; align-content: end;",
+          fluidRow(
+            column(width = 3,
+                   align = "left",
+                   dataTableOutput(paste0(tableOutputPrefix, "_mxi_dt"))
+            ),
+            column(width = 9,
+                   align = "right",
+                   plotOutput(paste0(tableOutputPrefix, "_mxi"), width = "100%"),
+                   )
+          )
+        )
+      ),
     )
   )
 }
 
-ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_columns, covariances, cov_rownames) {
+ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_columns, covariances, cov_rownames, mxi_df) {
   if (se == "mb") {
     ss_caption1 <- "Table 1: Coefficient Estimates and Model-based Standard Errors."
     ss_caption2 <- "Table 2: Model-based Covariances."
@@ -236,8 +255,10 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
     pcols <- c("robust_P_Value_Marginal", "robust_P_Value_Interaction", "robust_P_Value_Joint")
   }
   
-  
-  if (!is.null(df) || nrow(df) != 0) {
+  beta_se <- NULL
+  covs  <- NULL
+  pvals <- NULL
+  if (nrow(df) != 0) {
     beta_se <- list(beta = df[, beta_columns], se = df[, se_columns])
     beta_se <- rbindlist(beta_se, use.names = FALSE)
     beta_se <- apply(beta_se, 2, FUN = function(x) {formatC(x, format = "e", digits = 2)})
@@ -247,6 +268,9 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
 
     pvals <- df[, pcols, drop = FALSE]
     pvals <- apply(pvals, 1, FUN = function(x) {formatC(10^-x, format = "e", digits = 2)})
+    
+    mxi_df$m <- sapply(1:nrow(mxi_df), FUN = function(x) df[["Beta_G"]] + (mxi_df$e[x] * df[[mxi_df$b[x]]]))
+    print(mxi_df)
   }
   
   output[[paste0(se, "_", test, "_ssTable_title")]] <- renderText({
@@ -262,6 +286,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
       rownames  = ss_rowname1,
       escape    = FALSE, 
       selection = 'none',
+      style = 'bootstrap4',
       caption   = htmltools::tags$caption(
                     style = 'caption-side: top; text-align: left;',
                     ss_caption1
@@ -284,6 +309,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
       rownames  = cov_rownames,
       escape    = FALSE,
       selection = 'none',
+      style = 'bootstrap4',
       caption   = htmltools::tags$caption(
                     style = 'caption-side: top; text-align: left;',
                     ss_caption2
@@ -314,6 +340,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                     style = 'caption-side: top; text-align: left;',
                     ss_caption3
                   ),
+      style = 'bootstrap4',
       options   = list(
                     autoWidth  = TRUE,
                     dom        = 't',
@@ -322,6 +349,26 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                     columnDefs = list(list(targets = "_all", className = "dt-center", width = "75px"))
                   )
       )
+  })
+  
+  
+  output[[paste0(se, "_", test, "_ssTable_mxi")]] <- renderPlot({
+    req(mxi_df$m)
+    ggplot2::ggplot(mxi_df, aes(x = e, y = m,  group = i, color = i)) +
+      geom_point() +
+      geom_line() + 
+      theme(panel.background = element_blank(),
+            panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
+            panel.grid       = element_line(color = "grey97"),
+            axis.line        = element_line(linewidth = 0.6),
+            axis.title       = element_text(size = 16, face = "bold"),
+            axis.text        = element_text(size = 15, face = "bold"),
+            plot.title       = element_text(size = 18, face = "bold", hjust = 0.5),
+            legend.position  = "none") +
+      scale_x_continuous(breaks = mxi_df$e) + 
+      ggtitle(df$SNPID) + 
+      ylab("Main Effects") +
+      xlab("Interactions")
   })
 }
 
