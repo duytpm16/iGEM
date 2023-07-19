@@ -77,7 +77,7 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
     scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max), breaks = round(seq(0, y.max, length.out = 6))) +
     theme(panel.background = element_blank(),
           panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
-          panel.grid       = element_line(color = "grey97"),
+          panel.grid       = element_line(color = "grey95"),
           axis.line        = element_blank(),
           axis.title       = element_text(size = 16),
           axis.title.x     = element_text(margin =  margin(t = 10, r = 0, b = 0, l = 0)),
@@ -146,7 +146,7 @@ qq_plot <- function(df, h) {
     ggtitle(bquote(lambda==.(h))) +
     theme(panel.background = element_blank(),
           panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
-          panel.grid       = element_line(color = "grey97"),
+          panel.grid       = element_line(color = "grey95"),
           plot.title       = element_text(size = 18, face = "bold", hjust = 0.1, vjust = -15),
           axis.line        = element_line(linewidth = 0.6),
           axis.title       = element_text(size = 16, face = "bold"),
@@ -165,7 +165,7 @@ variantTable_box <- function(tableOutputId) {
       "Variants in Manhattan Plot Region"
     ),
     card_body(
-      style = "height: 435px",
+      style = "height: 440px",
       dataTableOutput(tableOutputId, height = 400)
     )
   )
@@ -187,11 +187,11 @@ variantTable <- function(df, pcol, variant_colnames, cat_interactions) {
       dom = 'tp',
       search = list(regex = TRUE, caseInsensitive = TRUE),
       pageLength = 5,
-      ordering  = TRUE,
-      stateSave = TRUE,
-      autoWidth = TRUE,
-      scrollX   = TRUE,
-      columnDefs = list(list(targets = "_all", className = "dt-center", width = "75px"))
+      ordering   = TRUE,
+      stateSave  = TRUE,
+      autoWidth  = TRUE,
+      scrollX    = TRUE,
+      columnDefs = list(list(targets = "_all", className = "dt-center"))
     )
   ) %>% formatRound(columns=c(1), digits=2)
 }
@@ -206,7 +206,7 @@ ssTable_box <- function(tableOutputPrefix) {
       nav_panel(
         title = "Summary Statistics",
         card_body(
-          style = "height: 435px; overflow: hidden",
+          style = "height: 440px; overflow: hidden",
           uiOutput(paste0(tableOutputPrefix, "_title")),
           div(
             class = "main-content-grid advanced-grid",
@@ -217,26 +217,26 @@ ssTable_box <- function(tableOutputPrefix) {
         )
       ),
       nav_panel(
-        title = "Main Effects vs Interactions",
+        title = "Genotype Effects vs Interaction Groups",
         card_body(
-          style = "height: 435px; overflow: hidden; align-content: end;",
-          fluidRow(
-            column(width = 3,
-                   align = "left",
-                   dataTableOutput(paste0(tableOutputPrefix, "_mxi_dt"))
+          style = "height: 440px; overflow: hidden; align-content: end;",
+          sidebarLayout(
+            sidebarPanel(
+              selectInput(inputId  = paste0(tableOutputPrefix, "_mxi_select"),
+                          label    = "Select interaction(s):",
+                          choices  = NULL,
+                          multiple = TRUE)
             ),
-            column(width = 9,
-                   align = "right",
-                   plotOutput(paste0(tableOutputPrefix, "_mxi"), width = "100%"),
-                   )
+            mainPanel(
+              plotOutput(paste0(tableOutputPrefix, "_mxi"))
+            )
           )
-        )
-      ),
+       )
     )
-  )
+  ))
 }
 
-ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_columns, covariances, cov_rownames, mxi_df) {
+ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_columns, covariances, cov_rownames) {
   if (se == "mb") {
     ss_caption1 <- "Table 1: Coefficient Estimates and Model-based Standard Errors."
     ss_caption2 <- "Table 2: Model-based Covariances."
@@ -269,8 +269,6 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
     pvals <- df[, pcols, drop = FALSE]
     pvals <- apply(pvals, 1, FUN = function(x) {formatC(10^-x, format = "e", digits = 2)})
     
-    mxi_df$m <- sapply(1:nrow(mxi_df), FUN = function(x) df[["Beta_G"]] + (mxi_df$e[x] * df[[mxi_df$b[x]]]))
-    print(mxi_df)
   }
   
   output[[paste0(se, "_", test, "_ssTable_title")]] <- renderText({
@@ -288,7 +286,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
       selection = 'none',
       style = 'bootstrap4',
       caption   = htmltools::tags$caption(
-                    style = 'caption-side: top; text-align: left;',
+                    style = 'caption-side: top; text-align: left; font-weight: bold;',
                     ss_caption1
                   ),
       options   = list(
@@ -298,8 +296,8 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                     pageLength = 2,
                     columnDefs = list(list(targets = "_all", className = "dt-center", width = "75px"))
                   )
-      )
-  })
+      ) %>% formatStyle(0, target = "row", fontWeight = "bold", color = "black")
+  }) 
   
   output[[paste0(se, "_", test, "_ssTable2")]] <- DT::renderDT({
     req(covs)
@@ -311,7 +309,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
       selection = 'none',
       style = 'bootstrap4',
       caption   = htmltools::tags$caption(
-                    style = 'caption-side: top; text-align: left;',
+                    style = 'caption-side: top; text-align: left; font-weight: bold;',
                     ss_caption2
                   ),
       options   = list(
@@ -324,9 +322,8 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                     scrollY    = "250px",
                     columnDefs = list(list(targets = "_all", className = "dt-center"))
                   )
-      )
+      ) %>% formatStyle(0, target = "row", fontWeight = "bold", color = "black")
   })
-
 
   output[[paste0(se, "_", test, "_ssTable3")]] <- DT::renderDT({
     req(pvals)
@@ -337,7 +334,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
       escape    = FALSE,
       selection = 'none',
       caption   = htmltools::tags$caption(
-                    style = 'caption-side: top; text-align: left;',
+                    style = 'caption-side: top; text-align: left; font-weight: bold;',
                     ss_caption3
                   ),
       style = 'bootstrap4',
@@ -348,31 +345,71 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
                     pageLength = 1,
                     columnDefs = list(list(targets = "_all", className = "dt-center", width = "75px"))
                   )
-      )
-  })
-  
-  
-  output[[paste0(se, "_", test, "_ssTable_mxi")]] <- renderPlot({
-    req(mxi_df$m)
-    ggplot2::ggplot(mxi_df, aes(x = e, y = m,  group = i, color = i)) +
-      geom_point() +
-      geom_line() + 
-      theme(panel.background = element_blank(),
-            panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
-            panel.grid       = element_line(color = "grey97"),
-            axis.line        = element_line(linewidth = 0.6),
-            axis.title       = element_text(size = 16, face = "bold"),
-            axis.text        = element_text(size = 15, face = "bold"),
-            plot.title       = element_text(size = 18, face = "bold", hjust = 0.5),
-            legend.position  = "none") +
-      scale_x_continuous(breaks = mxi_df$e) + 
-      ggtitle(df$SNPID) + 
-      ylab("Main Effects") +
-      xlab("Interactions")
+      ) %>% formatStyle(0, target = "row", fontWeight = "bold", color = "black")
   })
 }
 
 
+mxi_table <- function(df) {
+  if (nrow(df) != 0 & !is.null(df)) {
+    return(DT::datatable(
+             df[!duplicated(df$i), "i", drop = FALSE],
+             rownames  = NULL,
+             colnames  = "Interactions",
+             selection = 'multiple',
+             escape    = FALSE,
+             caption   = htmltools::tags$caption(style = 'caption-side: top; text-align: left; font-weight: bold;', ""),
+             style     = 'bootstrap5',
+             options   = list(
+                           dom        = 't',
+                           pageLength = 1000,
+                           ordering   = TRUE,
+                           stateSave  = TRUE,
+                           autoWidth  = TRUE,
+                           scrollX    = TRUE,
+                           scrollY    = "250px",
+                           columnDefs = list(list(targets = "_all", className = "dt-center")
+                         )
+             )
+           ) %>% formatStyle(0, target = "row", fontWeight = "bold", color = "black")
+    )
+  }
+  
+  return (NULL)
+}
+
+mxi_plot <- function(df, mxi_df, choice) {
+  if (is.null(df) | is.null(mxi_df) | is.null(choice)) {
+    return(NULL)
+  }
+  
+  if (nrow(df) != 0 & nrow(mxi_df) != 0 & length(choice) != 0) {
+    mxi_df <- mxi_df[mxi_df$i %in% choice, ]
+    mxi_df$m <- sapply(1:nrow(mxi_df), FUN = function(x) df[["Beta_G"]] + (mxi_df$e[x] * df[[mxi_df$b[x]]]))
+    if (length(choice) == 1) {
+      p <- ggplot2::ggplot(mxi_df, aes(x = e, y = m))
+    } else {
+      p <- ggplot2::ggplot(mxi_df, aes(x = e, y = m, group = i, color = i))
+    }
+    return (p +
+              geom_point() +
+              geom_line() + 
+              theme(panel.background = element_blank(),
+                    panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
+                    panel.grid       = element_line(color = "grey95"),
+                    axis.line        = element_line(linewidth = 0.6),
+                    axis.title       = element_text(size = 16, face = "bold"),
+                    axis.text        = element_text(size = 15, face = "bold"),
+                    plot.title       = element_text(size = 18, face = "bold", hjust = 0.5),
+                    legend.position  = "none") +
+              scale_x_continuous(breaks = mxi_df$e) + 
+              ggtitle(df$SNPID) + 
+              ylab("Genotype Effects") +
+              xlab("Interaction Groups"))
+  } 
+  
+  return (NULL)
+}
 
 
 # https://genome.ucsc.edu/goldenpath/help/hg38.chrom.sizes

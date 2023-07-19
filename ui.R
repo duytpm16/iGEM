@@ -50,7 +50,7 @@ ui <- fluidPage(
               type = "text/css", 
               href = "style.css")
           ),
-          tags$style(HTML('table.dataTable tr.active td, table.dataTable tr.active {background-color: red !important;}')),
+          tags$style(HTML('table.dataTable tr.active td, table.dataTable tr.active {background-color: #d9230f !important;}')),
           
           # MAIN BODY ---------------------------------------------------------------
           fluidRow(

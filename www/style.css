@@ -37,7 +37,7 @@
   color: #fff;
   font-size: 20px;
   font-weight: bold;
-  background: red;
+  background: #d9230f;
   height: 40px;
   padding-top: 6px;
 }
@@ -70,7 +70,7 @@
 }
 
 .btn-warning, .btn-warning:hover {
-    background: red;
+    background: #d9230f;
     font-size: 25px;
     font-weight: bold;
     padding: 5px 12px;
