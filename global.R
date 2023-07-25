@@ -64,7 +64,8 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
   if (is.null(df)) {
     return(NULL)
   }
-
+  colnames(df) <- c("CUMPOS", "LOGP")
+  
   y.max <- ceiling(max(df$LOGP)) + 5
   
   ggplot(df, aes(x=CUMPOS, y=LOGP)) +
@@ -90,7 +91,7 @@ manhattan_tooltip <- function (hover, df) {
   if (is.null(df)) {
     return(NULL)
   }
-  
+  colnames(df) <- c("CUMPOS", "LOGP")
   point <- nearPoints(df, hover, maxpoints =  1,
                       xvar = "CUMPOS",  yvar = "LOGP")
   
@@ -454,7 +455,7 @@ get_chr_colors <- function(df, colors) {
   nchr <- nrow(df)
   cols <- rep(colors, ceiling(nchr / length(colors)))
   
-  return(unlist(lapply(1:nchr, function(x) data.frame(color = rep(cols[x], df$n[x])))))
+  return(unlist(lapply(1:nchr, function(x) data.frame(color = rep(cols[x], df$N[x])))))
 }
 
 

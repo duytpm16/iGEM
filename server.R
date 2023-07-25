@@ -10,26 +10,12 @@ server <- function(input, output, session) {
                             mb_joint       = NULL,
                             rb_joint       = NULL)
   
-  mh_nvar <- reactiveValues(mb_marginal_var_count    = NULL,
-                            rb_marginal_var_count    = NULL,
-                            mb_interaction_var_count = NULL,
-                            rb_interaction_var_count = NULL,
-                            mb_joint_var_count       = NULL,
-                            rb_joint_var_count       = NULL)
-  
-  qq_data <- reactiveValues(mb_marginal    = NULL,
+  mh_nvar <- reactiveValues(mb_marginal    = NULL,
                             rb_marginal    = NULL,
                             mb_interaction = NULL,
                             rb_interaction = NULL,
                             mb_joint       = NULL,
                             rb_joint       = NULL)
-  
-  columnExists <- reactiveValues(P_Value_Marginal           = FALSE,
-                                 P_Value_Interaction        = FALSE,
-                                 P_Value_Joint              = FALSE,
-                                 robust_P_Value_Marginal    = FALSE,
-                                 robust_P_Value_Interaction = FALSE,
-                                 robust_P_Value_Joint       = FALSE)
   
   # READ INPUT FILE ------------------------------------------------------------
   observeEvent(input$inputFile, {
@@ -45,7 +31,6 @@ server <- function(input, output, session) {
     chrom_lengths     <- chrom_lengths_hg38[df[, kit::funique(CHR)]]
     cum_chrom_lengths <- get_cumulative_length(chrom_lengths)
     df[, cumulative_pos := POS + cum_chrom_lengths[CHR]]
-
     gc(verbose = FALSE)
   
     ## P-values------------------------------------------------------------------
@@ -55,9 +40,11 @@ server <- function(input, output, session) {
     pvalue_columns <- pvalue_columns[pvalue_columns %in% coln]
     
     
-    genomic_inflation <- df[, lapply(.SD, function(x) median(qchisq(x, 1, lower.tail = FALSE)) / qchisq(0.5, 1)), .SDcols=pvalue_columns]
+    #genomic_inflation <- df[, lapply(.SD, function(x) median(qchisq(x, 1, lower.tail = FALSE)) / qchisq(0.5, 1)), .SDcols=pvalue_columns]
+    #genomic_inflation2 <- df[, lapply(.SD, function(x) median(qnorm(x, lower.tail = FALSE)^2) / qchisq(0.5, 1)), .SDcols=pvalue_columns]
     df[, (pvalue_columns) := lapply(.SD, function(x) -log10(x)), .SDcols = pvalue_columns]
-    gc()
+    data$qq <- sapply(pvalue_columns,  function(x) fastqq::drop_dense(df[[x]], -log10(stats::ppoints(nvar))), simplify = FALSE, USE.NAMES = TRUE)
+    gc(verbose = FALSE)
     
     
     index <- vector(mode = "logical", length = nvar)
@@ -69,26 +56,35 @@ server <- function(input, output, session) {
       test <- tolower(pcol_split[length(pcol_split)])
       
       if (pcol %in% coln) {
-        round_pval <- round(df[[pcol]], digits = 2)          
-        index[round_pval > 8] <- TRUE
+        sig_df <- data.table(pval = round(df[[pcol]], digits = 3), cpos = round_cumpos)
+        
+        index[sig_df[["pval"]] > 8] <- TRUE
+        keep <- !fduplicated(sig_df) & (sig_df[["pval"]] > 5)
+        keep[!(fduplicated(sig_df[["pval"]]) & fduplicated(round_cumpos)) & sig_df[["pval"]] <= 5] <- TRUE
+        
+        tmp <- sum(keep)
+        if ((nvar > 125000) & (tmp < 125000)) {
+          keep[sample(which(!keep & sig_df[["pval"]] <= 5), 125000 - tmp, replace = FALSE)] <- TRUE
+        } else if (tmp > 125000) {
+          keep[sample(which(keep & sig_df[["pval"]] <= 5), tmp - 125000, replace = FALSE)] <- FALSE
+        } else if (nvar <= 125000) {
+          keep[1:nvar] <- TRUE 
+        }
+        index[keep] <- TRUE
+        
+        mh_data[[paste0(se, "_", test)]] <- c(1:nvar)[keep] 
+        mh_nvar[[paste0(se, "_", test)]] <- as.data.frame(df[mh_data[[paste0(se, "_", test)]], .N, by = CHR])
 
-        sig_df <- data.table(pval = round_pval, cpos = round_cumpos)
-        
-          
-        tmp <- !(fduplicated(round_cumpos) & fduplicated(round_pval))
-        tmp[]
-        index[tmp] <- TRUE
-        
-        mh_data[[paste0(se, "_", test)]] <- as.data.frame(df[tmp, c("CHR", "POS", "cumulative_pos", pcol), with = FALSE])
-        mh_nvar[[paste0(se, "_", test, "_var_count")]] <- dplyr::count(mh_data[[paste0(se, "_", test)]], CHR)
         gc(verbose = FALSE)
       }
     }
-    gc(verbose = FALSE)
+    rm(keep)
+    rm(sig_df)
     
+    new_index  <- c(1:nvar)[keep]
+    new_index2 <- c(1:length(new_index))
     df <- df[index, ]
     rm(index)
-    rm(round_dt)
     gc(verbose = FALSE)
     
     
@@ -296,28 +292,28 @@ server <- function(input, output, session) {
     dfs <- list()
     colors <- strsplit(input$mh_chrColor, split = ";")[[1]]
     
-    if (!is.null(mh_nvar$mb_marginal_var_count)) {
-      dfs$mb_marginal <- get_chr_colors(mh_nvar$mb_marginal_var_count, colors)
+    if (!is.null(mh_nvar$mb_marginal)) {
+      dfs$mb_marginal <- get_chr_colors(mh_nvar$mb_marginal, colors)
     }
     
-    if (!is.null(mh_nvar$rb_marginal_var_count)) {
-      dfs$rb_marginal <- get_chr_colors(mh_nvar$rb_marginal_var_count, colors)
+    if (!is.null(mh_nvar$rb_marginal)) {
+      dfs$rb_marginal <- get_chr_colors(mh_nvar$rb_marginal, colors)
     }
     
-    if (!is.null(mh_nvar$mb_interaction_var_count)) {
-      dfs$mb_interaction <- get_chr_colors(mh_nvar$mb_interaction_var_count, colors)
+    if (!is.null(mh_nvar$mb_interaction)) {
+      dfs$mb_interaction <- get_chr_colors(mh_nvar$mb_interaction, colors)
     }
     
-    if (!is.null(mh_nvar$rb_interaction_var_count)) {
-      dfs$rb_interaction <- get_chr_colors(mh_nvar$rb_interaction_var_count, colors)
+    if (!is.null(mh_nvar$rb_interaction)) {
+      dfs$rb_interaction <- get_chr_colors(mh_nvar$rb_interaction, colors)
     }
     
-    if (!is.null(mh_nvar$mb_joint_var_count)) {
-      dfs$mb_joint <- get_chr_colors(mh_nvar$mb_joint_var_count, colors)
+    if (!is.null(mh_nvar$mb_joint)) {
+      dfs$mb_joint <- get_chr_colors(mh_nvar$mb_joint, colors)
     }
     
-    if (!is.null(mh_nvar$rb_joint_var_count)) {
-      dfs$rb_joint <- get_chr_colors(mh_nvar$rb_joint_var_count, colors)
+    if (!is.null(mh_nvar$rb_joint)) {
+      dfs$rb_joint <- get_chr_colors(mh_nvar$rb_joint, colors)
     }
     
     return(dfs)
@@ -327,54 +323,54 @@ server <- function(input, output, session) {
   
   # Manhattan Plot -------------------------------------------------------------
   output$mb_marginal_manhattan_plot <- renderPlot({
-    manhattan_plot(mh_data$mb_marginal, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_marginal)
+    manhattan_plot(data$df[mh_data$mb_marginal, c("cumulative_pos", "P_Value_Marginal")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_marginal)
   })
   
   output$rb_marginal_manhattan_plot <- renderPlot({
-    manhattan_plot(mh_data$rb_marginal, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_marginal)
+    manhattan_plot(data$df[mh_data$rb_marginal, c("cumulative_pos", "robust_P_Value_Marginal")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_marginal)
   })
   
   output$mb_interaction_manhattan_plot <- renderPlot({
-    manhattan_plot(mh_data$mb_interaction, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_interaction)
+    manhattan_plot(data$df[mh_data$mb_interaction, c("cumulative_pos", "P_Value_Interaction")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_interaction)
   })
   
   output$rb_interaction_manhattan_plot <- renderPlot({
-    manhattan_plot(mh_data$rb_interaction, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_interaction)
+    manhattan_plot(data$df[mh_data$rb_interaction, c("cumulative_pos", "robust_P_Value_Interaction")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_interaction)
   })
   
   output$mb_joint_manhattan_plot <- renderPlot({
-    manhattan_plot(mh_data$mb_joint, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_joint)
+    manhattan_plot(data$df[mh_data$mb_joint, c("cumulative_pos", "P_Value_Joint")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_joint)
   })
 
   output$rb_joint_manhattan_plot <- renderPlot({
-    manhattan_plot(mh_data$rb_joint, data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_joint)
+    manhattan_plot(data$df[mh_data$rb_joint, c("cumulative_pos", "robust_P_Value_Joint")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_joint)
   })
   
   
   
   # Manhattan Tooltip-----------------------------------------------------------
   output$mb_marginal_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input[["mb_marginal_manhattan_plot_hover"]], mh_data$mb_marginal)
+    manhattan_tooltip(input[["mb_marginal_manhattan_plot_hover"]], data$df[mh_data$mb_marginal, c("CHR", "POS", "cumulative_pos", "P_Value_Marginal")])
   })
 
   output$rb_marginal_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input[["rb_marginal_manhattan_plot_hover"]], mh_data$rb_marginal)
+    manhattan_tooltip(input[["rb_marginal_manhattan_plot_hover"]], data$df[mh_data$rb_marginal, c("CHR", "POS", "cumulative_pos", "robust_P_Value_Marginal")])
   })
 
   output$mb_interaction_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input[["mb_interaction_manhattan_plot_hover"]], mh_data$mb_interaction)
+    manhattan_tooltip(input[["mb_interaction_manhattan_plot_hover"]], data$df[mh_data$mb_interaction, c("CHR", "POS", "cumulative_pos", "P_Value_Interaction")])
   })
 
   output$rb_interaction_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input[["rb_interaction_manhattan_plot_hover"]], mh_data$rb_interaction)
+    manhattan_tooltip(input[["rb_interaction_manhattan_plot_hover"]], data$df[mh_data$rb_interaction, c("CHR", "POS", "cumulative_pos", "robust_P_Value_Interaction")])
   })
 
   output$mb_joint_manhattan_plot_hover_info <- renderUI({
-      manhattan_tooltip(input[["mb_joint_manhattan_plot_hover"]], mh_data$mb_joint)
+      manhattan_tooltip(input[["mb_joint_manhattan_plot_hover"]], data$df[mh_data$mb_joint, c("CHR", "POS", "cumulative_pos", "P_Value_Joint")])
   })
   
   output$rb_joint_manhattan_plot_hover_info <- renderUI({
-    manhattan_tooltip(input[["rb_joint_manhattan_plot_hover"]], mh_data$rb_joint)
+    manhattan_tooltip(input[["rb_joint_manhattan_plot_hover"]], data$df[mh_data$rb_joint, c("CHR", "POS", "cumulative_pos", "robust_P_Value_Joint")])
   })
   
   
@@ -408,27 +404,27 @@ server <- function(input, output, session) {
   
   # QQ Plot --------------------------------------------------------------------
   output$mb_marginal_qq_plot <- renderPlot({
-    qq_plot(qq_data$mb_marginal, qq_data$mb_marginal_lambda)
+    qq_plot(data$qq$P_Value_Marginal, "")
   })
   
   output$rb_marginal_qq_plot <- renderPlot({
-    qq_plot(qq_data$rb_marginal, qq_data$rb_marginal_lambda)
+    qq_plot(data$qq$robust_P_Value_Marginal, "")
   })
   
   output$mb_interaction_qq_plot <- renderPlot({
-    qq_plot(qq_data$mb_interaction, qq_data$mb_interaction_lambda)
+    qq_plot(data$qq$P_Value_Interaction, "")
   })
   
   output$rb_interaction_qq_plot <- renderPlot({
-    qq_plot(qq_data$rb_interaction, qq_data$rb_interaction_lambda)
+    qq_plot(data$qq$robust_P_Value_Interaction, "")
   })
   
   output$mb_joint_qq_plot <- renderPlot({
-    qq_plot(qq_data$mb_joint, qq_data$mb_joint_lambda)
+    qq_plot(data$qq$P_Value_Joint, "")
   })
   
   output$rb_joint_qq_plot <- renderPlot({
-    qq_plot(qq_data$rb_joint, qq_data$rb_joint_lambda)
+    qq_plot(data$qq$robust_P_Value_Joint, "")
   })
   
   
@@ -547,103 +543,103 @@ server <- function(input, output, session) {
   
   
   
-  # # Variant Table Row Selected -------------------------------------------------
-  # observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected), {
-  #   row <- input$mb_marginal_manhattan_plot_table_rows_selected
-  #   ssTables(output, "mb", "marginal", data$mb_marginal_nearest_points[row, ,drop = FALSE], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
-  # })
-  # 
-  # observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected), {
-  #   row <- input$rb_marginal_manhattan_plot_table_rows_selected
-  #   ssTables(output, "rb", "marginal", data$rb_marginal_nearest_points[row, ,drop = FALSE], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
-  # })
-  # 
-  # observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected), {
-  #   row <- input$mb_interaction_manhattan_plot_table_rows_selected
-  #   ssTables(output, "mb", "interaction", data$mb_interaction_nearest_points[row, ,drop = FALSE], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
-  # })
-  # 
-  # observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected), {
-  #   row <- input$rb_interaction_manhattan_plot_table_rows_selected
-  #   ssTables(output, "rb", "interaction", data$rb_interaction_nearest_points[row, ,drop = FALSE], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
-  # })
-  # 
-  # observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected), {
-  #   row <- input$mb_joint_manhattan_plot_table_rows_selected
-  #   ssTables(output, "mb", "joint", data$mb_joint_nearest_points[row, ,drop = FALSE], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
-  # })
-  # 
-  # observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected), {
-  #   row <- input$rb_joint_manhattan_plot_table_rows_selected
-  #   ssTables(output, "rb", "joint", data$rb_joint_nearest_points[row, ,drop = FALSE], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
-  # })
-  # 
-  # # G Effect vs Interaction Select--------------------------------------------
-  # observeEvent(data$interactions, {
-  #   updateSelectInput(session, "mb_marginal_ssTable_mxi_select",
-  #                     label   = "Select Interaction(s):",
-  #                     choices = data$interactions)
-  # })
-  # 
-  # observeEvent(data$interactions, {
-  #   updateSelectInput(session, "rb_marginal_ssTable_mxi_select",
-  #                     label   = "Select Interaction(s):",
-  #                     choices = data$interactions)
-  # })
-  # 
-  # observeEvent(data$interactions, {
-  #   updateSelectInput(session, "mb_interaction_ssTable_mxi_select",
-  #                     label   = "Select Interaction(s):",
-  #                     choices = data$interactions)
-  # })
-  # 
-  # observeEvent(data$interactions, {
-  #   updateSelectInput(session, "rb_interaction_ssTable_mxi_select",
-  #                     label   = "Select Interaction(s):",
-  #                     choices = data$interactions)
-  # })
-  # 
-  # observeEvent(data$interactions, {
-  #   updateSelectInput(session, "mb_joint_ssTable_mxi_select",
-  #                     label   = "Select Interaction(s):",
-  #                     choices = data$interactions)
-  # })
-  # 
-  # observeEvent(data$interactions, {
-  #   updateSelectInput(session, "rb_joint_ssTable_mxi_select",
-  #                     label   = "Select Interaction(s):",
-  #                     choices = data$interactions)
-  # })
-  # 
-  # 
-  # # G Effect vs Interaction Plot --------------------------------------------
-  # observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected, input$mb_marginal_ssTable_mxi_select), {
-  #   row <- input$mb_marginal_manhattan_plot_table_rows_selected
-  #   output$mb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$mb_marginal_nearest_points[row, ], data$mxi_df, input$mb_marginal_ssTable_mxi_select)})
-  # })
-  # 
-  # observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected, input$rb_marginal_ssTable_mxi_select), {
-  #   row <- input$rb_marginal_manhattan_plot_table_rows_selected
-  #   output$rb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$rb_marginal_nearest_points[row, ], data$mxi_df, input$rb_marginal_ssTable_mxi_select)})
-  # })
-  # 
-  # observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected, input$mb_interaction_ssTable_mxi_select), {
-  #   row <- input$mb_interaction_manhattan_plot_table_rows_selected
-  #   output$mb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$mb_interaction_nearest_points[row, ], data$mxi_df, input$mb_interaction_ssTable_mxi_select)})
-  # })
-  # 
-  # observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected, input$rb_interaction_ssTable_mxi_select), {
-  #   row <- input$rb_interaction_manhattan_plot_table_rows_selected
-  #   output$rb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$rb_interaction_nearest_points[row, ], data$mxi_df, input$rb_interaction_ssTable_mxi_select)})
-  # })
-  # 
-  # observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected, input$mb_joint_ssTable_mxi_select), {
-  #   row <- input$mb_joint_manhattan_plot_table_rows_selected
-  #   output$mb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$mb_joint_nearest_points[row, ], data$mxi_df, input$mb_joint_ssTable_mxi_select)})
-  # })
-  # 
-  # observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected, input$rb_joint_ssTable_mxi_select), {
-  #   row <- input$rb_joint_manhattan_plot_table_rows_selected
-  #   output$rb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$rb_joint_nearest_points[row, ], data$mxi_df, input$rb_joint_ssTable_mxi_select)})
-  # })
+  # Variant Table Row Selected -------------------------------------------------
+  observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected), {
+    row <- input$mb_marginal_manhattan_plot_table_rows_selected
+    ssTables(output, "mb", "marginal", data$mb_marginal_nearest_points[row, ,drop = FALSE], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+  })
+
+  observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected), {
+    row <- input$rb_marginal_manhattan_plot_table_rows_selected
+    ssTables(output, "rb", "marginal", data$rb_marginal_nearest_points[row, ,drop = FALSE], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+  })
+
+  observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected), {
+    row <- input$mb_interaction_manhattan_plot_table_rows_selected
+    ssTables(output, "mb", "interaction", data$mb_interaction_nearest_points[row, ,drop = FALSE], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+  })
+
+  observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected), {
+    row <- input$rb_interaction_manhattan_plot_table_rows_selected
+    ssTables(output, "rb", "interaction", data$rb_interaction_nearest_points[row, ,drop = FALSE], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+  })
+
+  observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected), {
+    row <- input$mb_joint_manhattan_plot_table_rows_selected
+    ssTables(output, "mb", "joint", data$mb_joint_nearest_points[row, ,drop = FALSE], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+  })
+
+  observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected), {
+    row <- input$rb_joint_manhattan_plot_table_rows_selected
+    ssTables(output, "rb", "joint", data$rb_joint_nearest_points[row, ,drop = FALSE], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+  })
+
+  # G Effect vs Interaction Select--------------------------------------------
+  observeEvent(data$interactions, {
+    updateSelectInput(session, "mb_marginal_ssTable_mxi_select",
+                      label   = "Select Interaction(s):",
+                      choices = data$interactions)
+  })
+
+  observeEvent(data$interactions, {
+    updateSelectInput(session, "rb_marginal_ssTable_mxi_select",
+                      label   = "Select Interaction(s):",
+                      choices = data$interactions)
+  })
+
+  observeEvent(data$interactions, {
+    updateSelectInput(session, "mb_interaction_ssTable_mxi_select",
+                      label   = "Select Interaction(s):",
+                      choices = data$interactions)
+  })
+
+  observeEvent(data$interactions, {
+    updateSelectInput(session, "rb_interaction_ssTable_mxi_select",
+                      label   = "Select Interaction(s):",
+                      choices = data$interactions)
+  })
+
+  observeEvent(data$interactions, {
+    updateSelectInput(session, "mb_joint_ssTable_mxi_select",
+                      label   = "Select Interaction(s):",
+                      choices = data$interactions)
+  })
+
+  observeEvent(data$interactions, {
+    updateSelectInput(session, "rb_joint_ssTable_mxi_select",
+                      label   = "Select Interaction(s):",
+                      choices = data$interactions)
+  })
+
+
+  # G Effect vs Interaction Plot --------------------------------------------
+  observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected, input$mb_marginal_ssTable_mxi_select), {
+    row <- input$mb_marginal_manhattan_plot_table_rows_selected
+    output$mb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$mb_marginal_nearest_points[row, ], data$mxi_df, input$mb_marginal_ssTable_mxi_select)})
+  })
+
+  observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected, input$rb_marginal_ssTable_mxi_select), {
+    row <- input$rb_marginal_manhattan_plot_table_rows_selected
+    output$rb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$rb_marginal_nearest_points[row, ], data$mxi_df, input$rb_marginal_ssTable_mxi_select)})
+  })
+
+  observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected, input$mb_interaction_ssTable_mxi_select), {
+    row <- input$mb_interaction_manhattan_plot_table_rows_selected
+    output$mb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$mb_interaction_nearest_points[row, ], data$mxi_df, input$mb_interaction_ssTable_mxi_select)})
+  })
+
+  observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected, input$rb_interaction_ssTable_mxi_select), {
+    row <- input$rb_interaction_manhattan_plot_table_rows_selected
+    output$rb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$rb_interaction_nearest_points[row, ], data$mxi_df, input$rb_interaction_ssTable_mxi_select)})
+  })
+
+  observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected, input$mb_joint_ssTable_mxi_select), {
+    row <- input$mb_joint_manhattan_plot_table_rows_selected
+    output$mb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$mb_joint_nearest_points[row, ], data$mxi_df, input$mb_joint_ssTable_mxi_select)})
+  })
+
+  observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected, input$rb_joint_ssTable_mxi_select), {
+    row <- input$rb_joint_manhattan_plot_table_rows_selected
+    output$rb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$rb_joint_nearest_points[row, ], data$mxi_df, input$rb_joint_ssTable_mxi_select)})
+  })
 }
