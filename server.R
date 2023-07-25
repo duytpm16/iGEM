@@ -42,17 +42,26 @@ server <- function(input, output, session) {
     gc(verbose = FALSE)
     
     setorderv(df, c("CHR", "POS"))
-    chrom_lengths     <- chrom_lengths_hg38[df[,kit::funique(CHR)]]
+    chrom_lengths     <- chrom_lengths_hg38[df[, kit::funique(CHR)]]
     cum_chrom_lengths <- get_cumulative_length(chrom_lengths)
     df[, cumulative_pos := POS + cum_chrom_lengths[CHR]]
-    df[, index := 1:nvar]
+
     gc(verbose = FALSE)
   
     ## P-values------------------------------------------------------------------
-    index <- c()
     pvalue_columns <- c("P_Value_Marginal",    "robust_P_Value_Marginal",
                         "P_Value_Interaction", "robust_P_Value_Interaction",
                         "P_Value_Joint",       "robust_P_Value_Joint")
+    pvalue_columns <- pvalue_columns[pvalue_columns %in% coln]
+    
+    
+    genomic_inflation <- df[, lapply(.SD, function(x) median(qchisq(x, 1, lower.tail = FALSE)) / qchisq(0.5, 1)), .SDcols=pvalue_columns]
+    df[, (pvalue_columns) := lapply(.SD, function(x) -log10(x)), .SDcols = pvalue_columns]
+    gc()
+    
+    
+    index <- vector(mode = "logical", length = nvar)
+    round_cumpos <- plyr::round_any(df[["cumulative_pos"]], accuracy = 100000)
     
     for (pcol in pvalue_columns) {
       pcol_split <- strsplit(pcol, "_")[[1]]
@@ -60,28 +69,26 @@ server <- function(input, output, session) {
       test <- tolower(pcol_split[length(pcol_split)])
       
       if (pcol %in% coln) {
-        columnExists[[pcol]] = TRUE
+        round_pval <- round(df[[pcol]], digits = 2)          
+        index[round_pval > 8] <- TRUE
+
+        sig_df <- data.table(pval = round_pval, cpos = round_cumpos)
         
-        qq_data[[paste0(se, "_", test, "_lambda")]] <- format(round(median(qchisq(1-df[[pcol]],1)) / qchisq(0.5, 1), 2), nsmall = 2)
-        df[[pcol]] <- -log10(df[[pcol]])
-        qq_data[[paste0(se, "_", test)]] <- fastqq::drop_dense(df[[pcol]], -log10(stats::ppoints(nvar)))
+          
+        tmp <- !(fduplicated(round_cumpos) & fduplicated(round_pval))
+        tmp[]
+        index[tmp] <- TRUE
         
-        subDF <- subset_data(df[,c("index", "CHR", "POS", "cumulative_pos", pcol), with = FALSE], pcol, nvar)
-        index <- c(index, subDF$index)
-        subDF <- subDF[!subDF$duplicated, c("CHR", "POS", "CUMPOS", "LOGP")]
-        
-        mh_data[[paste0(se, "_", test)]] <- subDF
-        mh_nvar[[paste0(se, "_", test, "_var_count")]] <- dplyr::count(subDF, CHR)
+        mh_data[[paste0(se, "_", test)]] <- as.data.frame(df[tmp, c("CHR", "POS", "cumulative_pos", pcol), with = FALSE])
+        mh_nvar[[paste0(se, "_", test, "_var_count")]] <- dplyr::count(mh_data[[paste0(se, "_", test)]], CHR)
         gc(verbose = FALSE)
       }
     }
+    gc(verbose = FALSE)
     
-    
-    index <- index[order(index)]
-    index <- index[!fduplicated(index)]
     df <- df[index, ]
-    df$index <- 1:nrow(df)
     rm(index)
+    rm(round_dt)
     gc(verbose = FALSE)
     
     
@@ -89,6 +96,7 @@ server <- function(input, output, session) {
     interactions <- c("Beta_Marginal", "Beta_G", coln[grepl("^Beta_G-", coln)])
     interactions <- gsub("Beta_", "", interactions)
     int_colnames <- c("Marginal", "Main", gsub("G[-]", "G x ", interactions[grepl("^G[-]", interactions)]))
+
     
     ## Betas and SE-------------------------------------------------------------
     data$mb_beta <- paste0("Beta_", interactions)
@@ -96,10 +104,11 @@ server <- function(input, output, session) {
     if(any(grepl("^robust_Beta", coln))){
       data$rb_beta <- paste0("robust_Beta_", interactions)
     }
-    
+
     data$mb_se   <- paste0("SE_Beta_", interactions)
     data$rb_se   <- paste0("robust_SE_Beta_", interactions)
     data$int_colnames <- int_colnames
+    
     
     ## Covariance----------------------------------------------------------------
     covariances  <- unlist(lapply(combn(interactions[-1], 2, simplify = FALSE), FUN = function(x) {paste0(x[1], "_", x[2])}))
@@ -109,13 +118,18 @@ server <- function(input, output, session) {
     data$mb_cov_rownames <- paste0("Cov(", cov_rownames, ")")
     data$rb_cov_rownames <- paste0("Cov<sub>R</sub>(", cov_rownames, ")")
     
+    
     ## Variant Info-------------------------------------------------------------
+    var_columns  <- c("SNPID", "CHR", "POS", "Non_Effect_Allele", "Effect_Allele", "N_Samples", "AF")
     var_colnames <- c("-log<SUB>10</SUB>(p)", "SNP ID", "CHROM", "POS", "<center>NON-EFFECT<br>ALLELE</center>", "<center>EFFECT<br>ALLELE</center>", "<center>N<br>SAMPLES</center>", "AF")
-                      
+    
+    
     ## Categorical--------------------------------------------------------------
     data$interactions <- gsub("G[-]", "", interactions[-c(1,2)])
     cat_interactions  <- data$interactions
     cat_interactions  <- coln[grepl(paste0("^N[_]", cat_interactions, collapse = "|"), coln)]
+    
+    
     if (length(cat_interactions) == 0) {
       data$mxi_df <- data.frame(i = unlist(lapply(data$interactions, FUN = function(x) rep(x, 7))),
                                 e = rep(-3:3, length(data$interactions)))
@@ -147,13 +161,14 @@ server <- function(input, output, session) {
       cat_af <- paste0("<center>AF<br>", gsub("[_]", " - ", cat_interactions), "</center>")
       cat_colnames <- unlist(lapply(1:length(cat_n), FUN = function(x) c(cat_n[x], cat_af[x])))
       var_colnames <- c(var_colnames, cat_colnames)
-      
       cat_n  <- paste0("N_", cat_interactions)
       cat_af <- paste0("AF_", cat_interactions)
       cat_interactions <- unlist(lapply(1:length(cat_n), FUN = function(x) c(cat_n[x], cat_af[x])))
+      var_columns <- c(var_columns, cat_interactions)
       data$cat_interactions <- cat_interactions
     }
     data$var_colnames <- var_colnames
+    data$var_columns <- var_columns
     
     # Manhattan plot data
     data$x_breaks <- get_x_breaks(chrom_lengths_hg38)
@@ -474,33 +489,33 @@ server <- function(input, output, session) {
   
   # Variant Table---------------------------------------------------------------
   output$mb_marginal_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$mb_marginal_nearest_points$index, ])
-    variantTable(data$df[data$mb_marginal_nearest_points$index, ], "P_Value_Marginal", data$var_colnames, data$cat_interactions)
+    req(data$mb_marginal_nearest_points)
+    variantTable(data$mb_marginal_nearest_points, "P_Value_Marginal", data$var_columns, data$var_colnames)
   })
   
   output$rb_marginal_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$rb_marginal_nearest_points$index, ])
-    variantTable(data$df[data$rb_marginal_nearest_points$index, ], "robust_P_Value_Marginal", data$var_colnames, data$cat_interactions)
+    req(data$rb_marginal_nearest_points)
+    variantTable(data$rb_marginal_nearest_points, "robust_P_Value_Marginal", data$var_columns, data$var_colnames)
   })
   
   output$mb_interaction_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$mb_interaction_nearest_points$index, ])
-    variantTable(data$df[data$mb_interaction_nearest_points$index, ], "P_Value_Interaction", data$var_colnames, data$cat_interactions)
+    req(data$mb_interaction_nearest_points)
+    variantTable(data$mb_interaction_nearest_points, "P_Value_Interaction", data$var_columns, data$var_colnames)
   })
   
   output$rb_interaction_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$rb_interaction_nearest_points$index, ])
-    variantTable(data$df[data$rb_interaction_nearest_points$index, ], "robust_P_Value_Interaction", data$var_colnames, data$cat_interactions)
+    req(data$rb_interaction_nearest_points)
+    variantTable(data$rb_interaction_nearest_points, "robust_P_Value_Interaction", data$var_columns, data$var_colnames)
   })
   
   output$mb_joint_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$mb_joint_nearest_points$index, ])
-    variantTable(data$df[data$mb_joint_nearest_points$index, ], "P_Value_Joint", data$var_colnames, data$cat_interactions)
+    req(data$mb_joint_nearest_points)
+    variantTable(data$mb_joint_nearest_points, "P_Value_Joint", data$var_columns, data$var_colnames)
   })
   
   output$rb_joint_manhattan_plot_table <- DT::renderDT({
-    req(data$df[data$rb_joint_nearest_points$index, ])
-    variantTable(data$df[data$rb_joint_nearest_points$index, ], "robust_P_Value_Joint", data$var_colnames, data$cat_interactions)
+    req(data$rb_joint_nearest_points)
+    variantTable(data$rb_joint_nearest_points, "robust_P_Value_Joint", data$var_columns, data$var_colnames)
   })
   
   
@@ -532,103 +547,103 @@ server <- function(input, output, session) {
   
   
   
-  # Variant Table Row Selected -------------------------------------------------
-  observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected), {
-    row <- input$mb_marginal_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "marginal", data$df[data$mb_marginal_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
-  })
-
-  observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected), {
-    row <- input$rb_marginal_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "marginal", data$df[data$rb_marginal_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
-  })
-
-  observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected), {
-    row <- input$mb_interaction_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "interaction", data$df[data$mb_interaction_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
-  })
-
-  observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected), {
-    row <- input$rb_interaction_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "interaction", data$df[data$rb_interaction_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
-  })
-
-  observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected), {
-    row <- input$mb_joint_manhattan_plot_table_rows_selected
-    ssTables(output, "mb", "joint", data$df[data$mb_joint_nearest_points$index[row], ], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
-  })
-
-  observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected), {
-    row <- input$rb_joint_manhattan_plot_table_rows_selected
-    ssTables(output, "rb", "joint", data$df[data$rb_joint_nearest_points$index[row], ], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
-  })
-  
-  # G Effect vs Interaction Select--------------------------------------------
-  observeEvent(data$interactions, {
-    updateSelectInput(session, "mb_marginal_ssTable_mxi_select",
-                      label   = "Select Interaction(s):",
-                      choices = data$interactions)
-  })
-  
-  observeEvent(data$interactions, {
-    updateSelectInput(session, "rb_marginal_ssTable_mxi_select",
-                      label   = "Select Interaction(s):",
-                      choices = data$interactions)
-  })
-  
-  observeEvent(data$interactions, {
-    updateSelectInput(session, "mb_interaction_ssTable_mxi_select",
-                      label   = "Select Interaction(s):",
-                      choices = data$interactions)
-  })
-  
-  observeEvent(data$interactions, {
-    updateSelectInput(session, "rb_interaction_ssTable_mxi_select",
-                      label   = "Select Interaction(s):",
-                      choices = data$interactions)
-  })
-  
-  observeEvent(data$interactions, {
-    updateSelectInput(session, "mb_joint_ssTable_mxi_select",
-                      label   = "Select Interaction(s):",
-                      choices = data$interactions)
-  })
-  
-  observeEvent(data$interactions, {
-    updateSelectInput(session, "rb_joint_ssTable_mxi_select",
-                      label   = "Select Interaction(s):",
-                      choices = data$interactions)
-  })
-  
-  
-  # G Effect vs Interaction Plot --------------------------------------------
-  observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected, input$mb_marginal_ssTable_mxi_select), {
-    row <- input$mb_marginal_manhattan_plot_table_rows_selected
-    output$mb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$df[data$mb_marginal_nearest_points$index[row], ], data$mxi_df, input$mb_marginal_ssTable_mxi_select)})
-  })
-  
-  observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected, input$rb_marginal_ssTable_mxi_select), {
-    row <- input$rb_marginal_manhattan_plot_table_rows_selected
-    output$rb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$df[data$rb_marginal_nearest_points$index[row], ], data$mxi_df, input$rb_marginal_ssTable_mxi_select)})
-  })
-  
-  observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected, input$mb_interaction_ssTable_mxi_select), {
-    row <- input$mb_interaction_manhattan_plot_table_rows_selected
-    output$mb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$df[data$mb_interaction_nearest_points$index[row], ], data$mxi_df, input$mb_interaction_ssTable_mxi_select)})
-  })
-  
-  observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected, input$rb_interaction_ssTable_mxi_select), {
-    row <- input$rb_interaction_manhattan_plot_table_rows_selected
-    output$rb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$df[data$rb_interaction_nearest_points$index[row], ], data$mxi_df, input$rb_interaction_ssTable_mxi_select)})
-  })
-  
-  observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected, input$mb_joint_ssTable_mxi_select), {
-    row <- input$mb_joint_manhattan_plot_table_rows_selected
-    output$mb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$df[data$mb_joint_nearest_points$index[row], ], data$mxi_df, input$mb_joint_ssTable_mxi_select)})
-  })
-  
-  observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected, input$rb_joint_ssTable_mxi_select), {
-    row <- input$rb_joint_manhattan_plot_table_rows_selected
-    output$rb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$df[data$rb_joint_nearest_points$index[row], ], data$mxi_df, input$rb_joint_ssTable_mxi_select)})
-  })
+  # # Variant Table Row Selected -------------------------------------------------
+  # observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected), {
+  #   row <- input$mb_marginal_manhattan_plot_table_rows_selected
+  #   ssTables(output, "mb", "marginal", data$mb_marginal_nearest_points[row, ,drop = FALSE], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+  # })
+  # 
+  # observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected), {
+  #   row <- input$rb_marginal_manhattan_plot_table_rows_selected
+  #   ssTables(output, "rb", "marginal", data$rb_marginal_nearest_points[row, ,drop = FALSE], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+  # })
+  # 
+  # observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected), {
+  #   row <- input$mb_interaction_manhattan_plot_table_rows_selected
+  #   ssTables(output, "mb", "interaction", data$mb_interaction_nearest_points[row, ,drop = FALSE], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+  # })
+  # 
+  # observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected), {
+  #   row <- input$rb_interaction_manhattan_plot_table_rows_selected
+  #   ssTables(output, "rb", "interaction", data$rb_interaction_nearest_points[row, ,drop = FALSE], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+  # })
+  # 
+  # observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected), {
+  #   row <- input$mb_joint_manhattan_plot_table_rows_selected
+  #   ssTables(output, "mb", "joint", data$mb_joint_nearest_points[row, ,drop = FALSE], data$int_colnames, data$mb_beta, data$mb_se, data$mb_covs, data$mb_cov_rownames)
+  # })
+  # 
+  # observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected), {
+  #   row <- input$rb_joint_manhattan_plot_table_rows_selected
+  #   ssTables(output, "rb", "joint", data$rb_joint_nearest_points[row, ,drop = FALSE], data$int_colnames, data$rb_beta, data$rb_se, data$rb_covs, data$rb_cov_rownames)
+  # })
+  # 
+  # # G Effect vs Interaction Select--------------------------------------------
+  # observeEvent(data$interactions, {
+  #   updateSelectInput(session, "mb_marginal_ssTable_mxi_select",
+  #                     label   = "Select Interaction(s):",
+  #                     choices = data$interactions)
+  # })
+  # 
+  # observeEvent(data$interactions, {
+  #   updateSelectInput(session, "rb_marginal_ssTable_mxi_select",
+  #                     label   = "Select Interaction(s):",
+  #                     choices = data$interactions)
+  # })
+  # 
+  # observeEvent(data$interactions, {
+  #   updateSelectInput(session, "mb_interaction_ssTable_mxi_select",
+  #                     label   = "Select Interaction(s):",
+  #                     choices = data$interactions)
+  # })
+  # 
+  # observeEvent(data$interactions, {
+  #   updateSelectInput(session, "rb_interaction_ssTable_mxi_select",
+  #                     label   = "Select Interaction(s):",
+  #                     choices = data$interactions)
+  # })
+  # 
+  # observeEvent(data$interactions, {
+  #   updateSelectInput(session, "mb_joint_ssTable_mxi_select",
+  #                     label   = "Select Interaction(s):",
+  #                     choices = data$interactions)
+  # })
+  # 
+  # observeEvent(data$interactions, {
+  #   updateSelectInput(session, "rb_joint_ssTable_mxi_select",
+  #                     label   = "Select Interaction(s):",
+  #                     choices = data$interactions)
+  # })
+  # 
+  # 
+  # # G Effect vs Interaction Plot --------------------------------------------
+  # observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected, input$mb_marginal_ssTable_mxi_select), {
+  #   row <- input$mb_marginal_manhattan_plot_table_rows_selected
+  #   output$mb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$mb_marginal_nearest_points[row, ], data$mxi_df, input$mb_marginal_ssTable_mxi_select)})
+  # })
+  # 
+  # observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected, input$rb_marginal_ssTable_mxi_select), {
+  #   row <- input$rb_marginal_manhattan_plot_table_rows_selected
+  #   output$rb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$rb_marginal_nearest_points[row, ], data$mxi_df, input$rb_marginal_ssTable_mxi_select)})
+  # })
+  # 
+  # observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected, input$mb_interaction_ssTable_mxi_select), {
+  #   row <- input$mb_interaction_manhattan_plot_table_rows_selected
+  #   output$mb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$mb_interaction_nearest_points[row, ], data$mxi_df, input$mb_interaction_ssTable_mxi_select)})
+  # })
+  # 
+  # observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected, input$rb_interaction_ssTable_mxi_select), {
+  #   row <- input$rb_interaction_manhattan_plot_table_rows_selected
+  #   output$rb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$rb_interaction_nearest_points[row, ], data$mxi_df, input$rb_interaction_ssTable_mxi_select)})
+  # })
+  # 
+  # observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected, input$mb_joint_ssTable_mxi_select), {
+  #   row <- input$mb_joint_manhattan_plot_table_rows_selected
+  #   output$mb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$mb_joint_nearest_points[row, ], data$mxi_df, input$mb_joint_ssTable_mxi_select)})
+  # })
+  # 
+  # observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected, input$rb_joint_ssTable_mxi_select), {
+  #   row <- input$rb_joint_manhattan_plot_table_rows_selected
+  #   output$rb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$rb_joint_nearest_points[row, ], data$mxi_df, input$rb_joint_ssTable_mxi_select)})
+  # })
 }

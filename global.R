@@ -171,9 +171,9 @@ variantTable_box <- function(tableOutputId) {
   )
 }
 
-variantTable <- function(df, pcol, variant_colnames, cat_interactions) {
+variantTable <- function(df, pcol, variant_columns, variant_colnames) {
   DT::datatable(
-    df[, c(pcol, "SNPID", "CHR", "POS", "Non_Effect_Allele", "Effect_Allele", "N_Samples", "AF", cat_interactions)],
+    df[, c(pcol, variant_columns)],
     colnames  = variant_colnames,
     rownames  = FALSE,
     escape    = FALSE,
@@ -225,7 +225,7 @@ ssTable_box <- function(tableOutputPrefix) {
               selectInput(inputId  = paste0(tableOutputPrefix, "_mxi_select"),
                           label    = "Select interaction(s):",
                           choices  = NULL,
-                          multiple = TRUE)
+                          multiple = FALSE)
             ),
             mainPanel(
               plotOutput(paste0(tableOutputPrefix, "_mxi"))
@@ -405,7 +405,7 @@ mxi_plot <- function(df, mxi_df, choice) {
               scale_x_continuous(breaks = mxi_df$e) + 
               ggtitle(df$SNPID) + 
               ylab("Genotype Effects") +
-              xlab("Interaction Groups"))
+              xlab(choice[1]))
   } 
   
   return (NULL)
