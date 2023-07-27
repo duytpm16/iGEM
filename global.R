@@ -91,7 +91,7 @@ manhattan_tooltip <- function (hover, df) {
   if (is.null(df)) {
     return(NULL)
   }
-  colnames(df) <- c("CUMPOS", "LOGP")
+  colnames(df) <- c("CHR", "POS", "CUMPOS", "LOGP")
   point <- nearPoints(df, hover, maxpoints =  1,
                       xvar = "CUMPOS",  yvar = "LOGP")
   
@@ -192,7 +192,7 @@ variantTable <- function(df, pcol, variant_columns, variant_colnames) {
       stateSave  = TRUE,
       autoWidth  = TRUE,
       scrollX    = TRUE,
-      columnDefs = list(list(targets = "_all", className = "dt-center"))
+      columnDefs = list(list(targets = "_all", className = "dt-center", width = "75px"))
     )
   ) %>% formatRound(columns=c(1), digits=2)
 }
@@ -218,7 +218,7 @@ ssTable_box <- function(tableOutputPrefix) {
         )
       ),
       nav_panel(
-        title = "Genotype Effects vs Interaction Groups",
+        title = "Genotype Effects vs Interaction",
         card_body(
           style = "height: 440px; overflow: hidden; align-content: end;",
           sidebarLayout(
