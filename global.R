@@ -225,8 +225,7 @@ ssTable_box <- function(tableOutputPrefix) {
             sidebarPanel(
               selectInput(inputId  = paste0(tableOutputPrefix, "_mxi_select"),
                           label    = "Select interaction(s):",
-                          choices  = NULL,
-                          multiple = FALSE)
+                          choices  = NULL)
             ),
             mainPanel(
               plotOutput(paste0(tableOutputPrefix, "_mxi"))
