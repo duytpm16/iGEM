@@ -221,18 +221,9 @@ ssTable_box <- function(tableOutputPrefix) {
         title = "Genotype Effects vs Interaction",
         card_body(
           style = "height: 440px; overflow: hidden; align-content: end;",
-          sidebarLayout(
-            sidebarPanel(
-              selectInput(inputId  = paste0(tableOutputPrefix, "_mxi_select"),
-                          label    = "Select interaction(s):",
-                          choices  = NULL)
-            ),
-            mainPanel(
-              plotOutput(paste0(tableOutputPrefix, "_mxi"))
-            )
-          )
-       )
-    )
+          uiOutput(outputId = paste0(tableOutputPrefix, "_mxi_ui"))
+        )
+      )
   ))
 }
 
@@ -378,34 +369,29 @@ mxi_table <- function(df) {
   return (NULL)
 }
 
-mxi_plot <- function(df, mxi_df, choice) {
-  if (is.null(df) | is.null(mxi_df) | is.null(choice)) {
+mxi_plot <- function(df, mxi_dfs, choice) {
+  if (is.null(df) | is.null(mxi_dfs[[choice]]) | is.null(choice)) {
     return(NULL)
   }
   
-  if (nrow(df) != 0 & nrow(mxi_df) != 0 & length(choice) != 0) {
-    mxi_df <- mxi_df[mxi_df$i %in% choice, ]
-    mxi_df$m <- sapply(1:nrow(mxi_df), FUN = function(x) df[["Beta_G"]] + (mxi_df$e[x] * df[[mxi_df$b[x]]]))
-    if (length(choice) == 1) {
-      p <- ggplot2::ggplot(mxi_df, aes(x = e, y = m))
-    } else {
-      p <- ggplot2::ggplot(mxi_df, aes(x = e, y = m, group = i, color = i))
-    }
-    return (p +
-              geom_point() +
-              geom_line() + 
-              theme(panel.background = element_blank(),
-                    panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
-                    panel.grid       = element_line(color = "grey95"),
-                    axis.line        = element_line(linewidth = 0.6),
-                    axis.title       = element_text(size = 16, face = "bold"),
-                    axis.text        = element_text(size = 15, face = "bold"),
-                    plot.title       = element_text(size = 18, face = "bold", hjust = 0.5),
-                    legend.position  = "none") +
-              scale_x_continuous(breaks = mxi_df$e) + 
-              ggtitle(df$SNPID) + 
-              ylab("Genotype Effects") +
-              xlab(choice[1]))
+  if (nrow(df) != 0 & nrow(mxi_dfs[[choice]]) != 0 & length(choice) != 0) {
+    mxi_dfs[[choice]]$m <- df[["Beta_G"]] + (as.numeric(mxi_dfs[[choice]]$e) * df[[mxi_dfs[[choice]]$b[1]]])
+    return(ggplot2::ggplot(mxi_dfs[[choice]], aes(x = e, y = m, group = i)) +
+            geom_point() +
+            geom_line() + 
+            theme(panel.background = element_blank(),
+                  panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
+                  panel.grid       = element_line(color = "grey95"),
+                  axis.line        = element_line(linewidth = 0.6),
+                  axis.title       = element_text(size = 16, face = "bold"),
+                  axis.text        = element_text(size = 15, face = "bold"),
+                  plot.title       = element_text(size = 18, face = "bold", hjust = 0.5),
+                  legend.position  = "none") +
+            ggtitle(df$SNPID) + 
+            ylab("Genotype Effects") +
+            xlab(choice) + 
+            scale_y_continuous(breaks = seq(min(mxi_dfs[[choice]]$m), max(mxi_dfs[[choice]]$m), length.out = 5))
+    )
   } 
   
   return (NULL)
