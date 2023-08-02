@@ -339,34 +339,53 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
       ) %>% formatStyle(0, target = "row", fontWeight = "bold", color = "black")
   })
 }
-
-
-mxi_table <- function(df) {
-  if (nrow(df) != 0 & !is.null(df)) {
-    return(DT::datatable(
-             df[!duplicated(df$i), "i", drop = FALSE],
-             rownames  = NULL,
-             colnames  = "Interactions",
-             selection = 'multiple',
-             escape    = FALSE,
-             caption   = htmltools::tags$caption(style = 'caption-side: top; text-align: left; font-weight: bold;', ""),
-             style     = 'bootstrap5',
-             options   = list(
-                           dom        = 't',
-                           pageLength = 1000,
-                           ordering   = TRUE,
-                           stateSave  = TRUE,
-                           autoWidth  = TRUE,
-                           scrollX    = TRUE,
-                           scrollY    = "250px",
-                           columnDefs = list(list(targets = "_all", className = "dt-center")
-                         )
-             )
-           ) %>% formatStyle(0, target = "row", fontWeight = "bold", color = "black")
-    )
-  }
   
-  return (NULL)
+
+
+rangeInputs <- function(se, test, x) {
+  prefix <- paste0(se, "_", test)
+  div(
+    style = "text-align: center;",
+    hidden(
+      fluidRow(
+        id = paste0(prefix, "_range_", x),
+        column(width = 6,
+               numericInput(inputId = paste0(prefix, "_minRange_", x),
+                            label = HTML("Min."),
+                            value = 0),
+        ),
+        column(width = 6   ,
+               numericInput(inputId = paste0(prefix, "_maxRange_", x),
+                            label = "Max.",
+                            value = 0)
+        )
+      )
+    )
+  )
+}
+
+mxi_panel <- function(se, test, interactions, continuous_ints, rangeInputs) {
+  prefix <- paste0(se, "_", test)
+  
+  return(
+    sidebarLayout(  
+      sidebarPanel(
+        selectInput(inputId  = paste0(prefix, "_ssTable_mxi_select"),
+                    label    = HTML("<b>Select interaction:</b>"),
+                    choices  = interactions),
+        hidden(
+          fluidRow(
+            id = paste0(prefix, "_mxi_sb_panel"),
+            HTML("<b>Range: </b>"),
+            tagList(rangeInputs)
+        ))
+        
+      ),
+      mainPanel(
+        plotOutput(paste0(prefix, "_ssTable_mxi"))
+      )
+    )
+  )
 }
 
 mxi_plot <- function(df, mxi_dfs, choice) {
@@ -376,6 +395,7 @@ mxi_plot <- function(df, mxi_dfs, choice) {
   
   if (nrow(df) != 0 & nrow(mxi_dfs[[choice]]) != 0 & length(choice) != 0) {
     mxi_dfs[[choice]]$m <- df[["Beta_G"]] + (as.numeric(mxi_dfs[[choice]]$e) * df[[mxi_dfs[[choice]]$b[1]]])
+    
     return(ggplot2::ggplot(mxi_dfs[[choice]], aes(x = e, y = m, group = i)) +
             geom_point() +
             geom_line() + 
