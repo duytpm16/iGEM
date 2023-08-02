@@ -396,24 +396,29 @@ mxi_plot <- function(df, mxi_dfs, choice) {
   if (nrow(df) != 0 & nrow(mxi_dfs[[choice]]) != 0 & length(choice) != 0) {
     mxi_dfs[[choice]]$m <- df[["Beta_G"]] + (as.numeric(mxi_dfs[[choice]]$e) * df[[mxi_dfs[[choice]]$b[1]]])
     
-    return(ggplot2::ggplot(mxi_dfs[[choice]], aes(x = e, y = m, group = i)) +
-            geom_point() +
-            geom_line() + 
-            theme(panel.background = element_blank(),
-                  panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
-                  panel.grid       = element_line(color = "grey95"),
-                  axis.line        = element_line(linewidth = 0.6),
-                  axis.title       = element_text(size = 16, face = "bold"),
-                  axis.text        = element_text(size = 15, face = "bold"),
-                  plot.title       = element_text(size = 18, face = "bold", hjust = 0.5),
-                  legend.position  = "none") +
-            ggtitle(df$SNPID) + 
-            ylab("Genotype Effects") +
-            xlab(choice) + 
-            scale_y_continuous(breaks = seq(min(mxi_dfs[[choice]]$m), max(mxi_dfs[[choice]]$m), length.out = 5))
-    )
+    p <- ggplot2::ggplot(mxi_dfs[[choice]], aes(x = e, y = m, group = i)) +
+          geom_point()
+    
+    if (nrow(mxi_dfs[[choice]]) != 1) {
+      p <- p + geom_line()
+    } 
+    
+    p <- p +
+           theme(panel.background = element_blank(),
+                 panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
+                 panel.grid       = element_line(color = "grey95"),
+                 axis.line        = element_line(linewidth = 0.6),
+                 axis.title       = element_text(size = 16, face = "bold"),
+                 axis.text        = element_text(size = 15, face = "bold"),
+                 plot.title       = element_text(size = 18, face = "bold", hjust = 0.5),
+                 legend.position  = "none") +
+           ggtitle(df$SNPID) + 
+           ylab("Genotype Effects") +
+           xlab(choice) + 
+           scale_y_continuous(breaks = seq(min(mxi_dfs[[choice]]$m), max(mxi_dfs[[choice]]$m), length.out = 5))
+    
+    return(p)
   } 
-  
   return (NULL)
 }
 
