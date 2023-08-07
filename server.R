@@ -3,6 +3,10 @@ server <- function(input, output, session) {
   # UI - GENERAL ---------------------------------------------------------------
   data <- reactiveValues(df = NULL)
   
+  session$onSessionEnded(function() {
+    stopApp()
+  })
+  
   # READ INPUT FILE ------------------------------------------------------------
   observeEvent(input$inputFile, {
     req(input$inputFile)
@@ -69,10 +73,14 @@ server <- function(input, output, session) {
     ## Betas and SE-------------------------------------------------------------
     data$mb_beta <- paste0("Beta_", interactions)
     data$rb_beta <- data$mb_beta
+    data$mb_beta_prefix <- "Beta_G-"
+    data$rb_beta_prefix <- "Beta_G-"
     if(any(grepl("^robust_Beta_", coln))){
       data$rb_beta <- paste0("robust_Beta_", interactions)
+      data$rb_beta_prefix <- "robust_Beta_G-"
     }
 
+    
     data$mb_se   <- paste0("SE_Beta_", interactions)
     data$rb_se   <- paste0("robust_SE_Beta_", interactions)
     data$int_colnames <- int_colnames
@@ -97,9 +105,11 @@ server <- function(input, output, session) {
     cat_interactions  <- coln[grepl(paste0("^N[_]", interactions, collapse = "|"), coln)]
   
     
-    mxi_dfs <- vector(mode = "list", length = length(interactions))
-    names(mxi_dfs) <- interactions
-    categorical_ints <- vector(mode = "character", length = 0)
+    mb_mxi_dfs <- vector(mode = "list", length = length(interactions))
+    rb_mxi_dfs <- vector(mode = "list", length = length(interactions))
+    names(mb_mxi_dfs) <- interactions
+    names(rb_mxi_dfs) <- interactions
+    categorical_ints  <- vector(mode = "character", length = 0)
     if (length(cat_interactions) != 0) {
       cat_interactions <- gsub("N[_]", "", cat_interactions)
       
@@ -107,15 +117,17 @@ server <- function(input, output, session) {
         cat_split <- strsplit(cat, "_")[[1]]
         stratum   <- as.numeric(cat_split[length(cat_split)])
         intname   <- paste0(cat_split[-length(cat_split)], collapse = "_")
-        mxi_dfs[[intname]] <- c(mxi_dfs[[intname]], stratum)
+        mb_mxi_dfs[[intname]] <- c(mb_mxi_dfs[[intname]], stratum)
+        rb_mxi_dfs[[intname]] <- c(rb_mxi_dfs[[intname]], stratum)
       }
       
-      for (x in names(mxi_dfs)) {
-        if (!is.null(mxi_dfs[[x]])) {
-          mxi_dfs[[x]] <- data.frame(i = rep(x, length(mxi_dfs[[x]])), e = as.factor(mxi_dfs[[x]][order(mxi_dfs[[x]])]), b = rep(paste0("Beta_G-", x), length(mxi_dfs[[x]])))
+      for (x in names(mb_mxi_dfs)) {
+        if (!is.null(mb_mxi_dfs[[x]])) {
+          mb_mxi_dfs[[x]] <- data.frame(i = rep(x, length(mb_mxi_dfs[[x]])), e = mb_mxi_dfs[[x]][order(mb_mxi_dfs[[x]])], b = rep(paste0(data$mb_beta_prefix, x), length(mb_mxi_dfs[[x]])))
+          rb_mxi_dfs[[x]] <- data.frame(i = rep(x, length(rb_mxi_dfs[[x]])), e = rb_mxi_dfs[[x]][order(rb_mxi_dfs[[x]])], b = rep(paste0(data$rb_beta_prefix, x), length(rb_mxi_dfs[[x]])))
         }
       }
-      categorical_ints <- names(mxi_dfs[!sapply(mxi_dfs,is.null)])
+      categorical_ints <- names(mb_mxi_dfs[!sapply(mb_mxi_dfs,is.null)])
       
       cat_n  <- paste0("<center>N<br>",  gsub("[_]", " - ", cat_interactions), "</center>")
       cat_af <- paste0("<center>AF<br>", gsub("[_]", " - ", cat_interactions), "</center>")
@@ -127,7 +139,7 @@ server <- function(input, output, session) {
       var_columns <- c(var_columns, cat_interactions)
       data$cat_interactions <- cat_interactions
     }
-    continuous_ints <- names(mxi_dfs[sapply(mxi_dfs, is.null)])
+    continuous_ints <- names(mb_mxi_dfs[sapply(mb_mxi_dfs, is.null)])
     
     data$minRange_names <- paste0("_minRange_", continuous_ints)
     data$maxRange_names <- paste0("_maxRange_", continuous_ints)
@@ -136,7 +148,9 @@ server <- function(input, output, session) {
     data$interactions <- interactions
     data$categorical_ints <- categorical_ints
     data$continuous_ints  <- continuous_ints
-    data$mxi_dfs <- mxi_dfs
+    data$mb_mxi_dfs <- mb_mxi_dfs
+    data$rb_mxi_dfs <- rb_mxi_dfs
+    
     
     # Manhattan plot data
     data$x_breaks <- get_x_breaks(chrom_lengths_hg38)
@@ -159,33 +173,9 @@ server <- function(input, output, session) {
     input$mh_sigColor
   })
   
-  mb_marginal_rangeInputs <- reactive({
-    lapply(data$continuous_ints, FUN = function(x) rangeInputs("mb", "marginal", x))
-  })
-  
-  rb_marginal_rangeInputs <- reactive({
-    lapply(data$continuous_ints, FUN = function(x) rangeInputs("rb", "marginal", x))
-  })
-  
-  mb_interaction_rangeInputs <- reactive({
-    lapply(data$continuous_ints, FUN = function(x) rangeInputs("mb", "interaction", x))
-  })
-  
-  rb_interaction_rangeInputs <- reactive({
-    lapply(data$continuous_ints, FUN = function(x) rangeInputs("rb", "interaction", x))
-  })
-  
-  mb_joint_rangeInputs <- reactive({
-    lapply(data$continuous_ints, FUN = function(x) rangeInputs("mb", "joint", x))
-  })
-  
-  rb_joint_rangeInputs <- reactive({
-    lapply(data$continuous_ints, FUN = function(x) rangeInputs("rb", "joint", x))
-  })
   
   # Button Updates--------------------------------------------------------------
-  button <- reactiveValues(gwis_clicked   = FALSE,
-                           mainxe_clicked = FALSE)
+  button <- reactiveValues(gwis_clicked = FALSE)
   
   observeEvent("", {
     show("gwas_panel")
@@ -570,226 +560,149 @@ server <- function(input, output, session) {
   })
 
 
+  
   # G Effect vs Interaction Panel-----------------------------------------------
-  output$mb_marginal_ssTable_mxi_ui <- renderUI({
-    mxi_panel("mb", "marginal", data$interactions, data$continuous_ints, mb_marginal_rangeInputs())
+  observeEvent(data$interactions, {
+    output$mb_marginal_ssTable_mxi_ui <- renderUI({
+      mxi_panel("mb_marginal", data$interactions, lapply(data$continuous_ints, rangePanel, prefix="mb_marginal"))
+    })
   })
   
-  output$rb_marginal_ssTable_mxi_ui <- renderUI({
-    mxi_panel("rb", "marginal", data$interactions, data$continuous_ints, rb_marginal_rangeInputs())
+  observeEvent(data$interactions, {
+    output$rb_marginal_ssTable_mxi_ui <- renderUI({
+      mxi_panel("rb_marginal", data$interactions, lapply(data$continuous_ints, rangePanel, prefix="rb_marginal"))
+    })
   })
     
-  output$mb_interaction_ssTable_mxi_ui <- renderUI({
-    mxi_panel("mb", "interaction", data$interactions, data$continuous_ints, mb_interaction_rangeInputs())
+  observeEvent(data$interactions, {
+    output$mb_interaction_ssTable_mxi_ui <- renderUI({
+      mxi_panel("mb_interaction", data$interactions, lapply(data$continuous_ints, rangePanel, prefix="mb_interaction"))
+    })
   })
   
-  output$rb_interaction_ssTable_mxi_ui <- renderUI({
-    mxi_panel("rb", "interaction", data$interactions, data$continuous_ints, rb_interaction_rangeInputs())
+  observeEvent(data$interactions, {
+    output$rb_interaction_ssTable_mxi_ui <- renderUI({
+      mxi_panel("rb_interaction", data$interactions, lapply(data$continuous_ints, rangePanel, prefix="rb_interaction"))
+    })
   })
   
-  output$mb_joint_ssTable_mxi_ui <- renderUI({
-    mxi_panel("mb", "joint", data$interactions, data$continuous_ints, mb_joint_rangeInputs())
+  observeEvent(data$interactions, {
+    output$mb_joint_ssTable_mxi_ui <- renderUI({
+      mxi_panel("mb_joint", data$interactions, lapply(data$continuous_ints, rangePanel, prefix="mb_joint"))
+    })
   })
-
-  output$rb_joint_ssTable_mxi_ui <- renderUI({
-    mxi_panel("rb", "joint", data$interactions, data$continuous_ints, rb_joint_rangeInputs())
+  
+  observeEvent(data$interactions, {
+    output$rb_joint_ssTable_mxi_ui <- renderUI({
+      mxi_panel("rb_joint", data$interactions, lapply(data$continuous_ints, rangePanel, prefix="rb_joint"))
+    })
   })
   
   
-  # G Effect vs Interaction Choice----------------------------------------------
+  
+  # G Effect vs Interaction Choice Panel----------------------------------------
   observeEvent(input$mb_marginal_ssTable_mxi_select, {
-    choice = input$mb_marginal_ssTable_mxi_select
-    if (choice %in% data$continuous_ints) {
-      show("mb_marginal_mxi_sb_panel")
-      for (x in data$continuous_ints) {
-        hide(paste0("mb_marginal_range_", x))
-      }
-      show(paste0("mb_marginal_range_", choice))
-      
-      observeEvent(ignoreInit = TRUE, list(input[[paste0("mb_marginal_minRange_", choice)]], input[[paste0("mb_marginal_maxRange_", choice)]]), {
-        if (!is.na(input[[paste0("mb_marginal_minRange_", choice)]]) & !is.na(input[[paste0("mb_marginal_maxRange_", choice)]])) {
-          e <- seq(input[[paste0("mb_marginal_minRange_", choice)]], input[[paste0("mb_marginal_maxRange_", choice)]])
-          data$mxi_dfs[[choice]] <- data.frame(i = rep(choice, length(e)), e = e, b = rep(paste0("Beta_G-", choice), length(e)))
-          for (x in names(input)[grepl(paste0("_minRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Min.", value = input[[paste0("mb_marginal_minRange_", choice)]])
-          }
-          
-          for (x in names(input)[grepl(paste0("_maxRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Max.", value = input[[paste0("mb_marginal_maxRange_", choice)]])
-          }
-        }
-      })
-    } else {
-      hide("mb_marginal_mxi_sb_panel")
-    }
+    choice <- input$mb_marginal_ssTable_mxi_select
+    ret    <- mxi_choice_panel("mb_marginal", choice, data$continuous_ints)
+    observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
+      req(input[[ret[[1]]]], input[[ret[[2]]]])
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
+      updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
+    })
   })
   
   observeEvent(input$rb_marginal_ssTable_mxi_select, {
-    choice = input$rb_marginal_ssTable_mxi_select
-    if (choice %in% data$continuous_ints) {
-      show("rb_marginal_mxi_sb_panel")
-      for (x in data$continuous_ints) {
-        hide(paste0("rb_marginal_range_", x))
-      }
-      show(paste0("rb_marginal_range_", choice))
-      
-      observeEvent(ignoreInit = TRUE, list(input[[paste0("rb_marginal_minRange_", choice)]], input[[paste0("rb_marginal_maxRange_", choice)]]), {
-        if (!is.na(input[[paste0("rb_marginal_minRange_", choice)]]) & !is.na(input[[paste0("rb_marginal_maxRange_", choice)]])) {
-          e <- seq(input[[paste0("rb_marginal_minRange_", choice)]], input[[paste0("rb_marginal_maxRange_", choice)]])
-          data$mxi_dfs[[choice]] <- data.frame(i = rep(choice, length(e)), e = e, b = rep(paste0("Beta_G-", choice), length(e)))
-          for (x in names(input)[grepl(paste0("_minRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Min.", value = input[[paste0("rb_marginal_minRange_", choice)]])
-          }
-          
-          for (x in names(input)[grepl(paste0("_maxRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Max.", value = input[[paste0("rb_marginal_maxRange_", choice)]])
-          }
-        }
-      })
-    } else {
-      hide("rb_marginal_mxi_sb_panel")
-    }
+    choice <- input$rb_marginal_ssTable_mxi_select
+    ret    <- mxi_choice_panel("rb_marginal", choice, data$continuous_ints)
+    observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
+      req(input[[ret[[1]]]], input[[ret[[2]]]])
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
+      updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
+    })
   })
   
   observeEvent(input$mb_interaction_ssTable_mxi_select, {
-    choice = input$mb_interaction_ssTable_mxi_select
-    if (choice %in% data$continuous_ints) {
-      show("mb_interaction_mxi_sb_panel")
-      for (x in data$continuous_ints) {
-        hide(paste0("mb_interaction_range_", x))
-      }
-      show(paste0("mb_interaction_range_", choice))
-      
-      observeEvent(ignoreInit = TRUE, list(input[[paste0("mb_interaction_minRange_", choice)]], input[[paste0("mb_interaction_maxRange_", choice)]]), {
-        if (!is.na(input[[paste0("mb_interaction_minRange_", choice)]]) & !is.na(input[[paste0("mb_interaction_maxRange_", choice)]])) {
-          e <- seq(input[[paste0("mb_interaction_minRange_", choice)]], input[[paste0("mb_interaction_maxRange_", choice)]])
-          data$mxi_dfs[[choice]] <- data.frame(i = rep(choice, length(e)), e = e, b = rep(paste0("Beta_G-", choice), length(e)))
-          for (x in names(input)[grepl(paste0("_minRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Min.", value = input[[paste0("mb_interaction_minRange_", choice)]])
-          }
-          
-          for (x in names(input)[grepl(paste0("_maxRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Max.", value = input[[paste0("mb_interaction_maxRange_", choice)]])
-          }
-        }
-      })
-    } else {
-      hide("mb_interaction_mxi_sb_panel")
-    }
+    choice <- input$mb_interaction_ssTable_mxi_select
+    ret    <- mxi_choice_panel("mb_interaction", choice, data$continuous_ints)
+    observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
+      req(input[[ret[[1]]]], input[[ret[[2]]]])
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
+      updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
+    })
   })
   
   observeEvent(input$rb_interaction_ssTable_mxi_select, {
-    choice = input$rb_interaction_ssTable_mxi_select
-    if (choice %in% data$continuous_ints) {
-      show("rb_interaction_mxi_sb_panel")
-      for (x in data$continuous_ints) {
-        hide(paste0("rb_interaction_range_", x))
-      }
-      show(paste0("rb_interaction_range_", choice))
-      
-      observeEvent(ignoreInit = TRUE, list(input[[paste0("rb_interaction_minRange_", choice)]], input[[paste0("rb_interaction_maxRange_", choice)]]), {
-        if (!is.na(input[[paste0("rb_interaction_minRange_", choice)]]) & !is.na(input[[paste0("rb_interaction_maxRange_", choice)]])) {
-          e <- seq(input[[paste0("rb_interaction_minRange_", choice)]], input[[paste0("rb_interaction_maxRange_", choice)]])
-          data$mxi_dfs[[choice]] <- data.frame(i = rep(choice, length(e)), e = e, b = rep(paste0("Beta_G-", choice), length(e)))
-          for (x in names(input)[grepl(paste0("_minRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Min.", value = input[[paste0("rb_interaction_minRange_", choice)]])
-          }
-          
-          for (x in names(input)[grepl(paste0("_maxRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Max.", value = input[[paste0("rb_interaction20", choice)]])
-          }
-        }
-      })
-    } else {
-      hide("rb_interaction_mxi_sb_panel")
-    }
+    choice <- input$rb_interaction_ssTable_mxi_select
+    ret    <- mxi_choice_panel("rb_interaction", choice, data$continuous_ints)
+    observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
+      req(input[[ret[[1]]]], input[[ret[[2]]]])
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
+      updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
+    })
   })
   
-  observeEvent(ignoreInit = TRUE, list(input$mb_joint_ssTable_mxi_select), {
-    choice = input$mb_joint_ssTable_mxi_select
-    if (choice %in% data$continuous_ints) {
-      show("mb_joint_mxi_sb_panel")
-      for (x in data$continuous_ints) {
-        hide(paste0("mb_joint_range_", x))
-      }
-      show(paste0("mb_joint_range_", choice))
-      
-      observeEvent(ignoreInit = TRUE, list(input[[paste0("mb_joint_minRange_", choice)]], input[[paste0("mb_joint_maxRange_", choice)]]), {
-        if (!is.na(input[[paste0("mb_joint_minRange_", choice)]]) & !is.na(input[[paste0("mb_joint_maxRange_", choice)]])) {
-          e <- seq(input[[paste0("mb_joint_minRange_", choice)]], input[[paste0("mb_joint_maxRange_", choice)]])
-          data$mxi_dfs[[choice]] <- data.frame(i = rep(choice, length(e)), e = e, b = rep(paste0("Beta_G-", choice), length(e)))
-          
-          for (x in names(input)[grepl(paste0("_minRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Min.", value = input[[paste0("mb_joint_minRange_", choice)]])
-          }
-  
-          for (x in names(input)[grepl(paste0("_maxRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Max.", value = input[[paste0("mb_joint_maxRange_", choice)]])
-          }
-        }
-      })
-    } else {
-      hide("mb_joint_mxi_sb_panel")
-    }
+  observeEvent(input$mb_joint_ssTable_mxi_select, {
+    choice <- input$mb_joint_ssTable_mxi_select
+    ret    <- mxi_choice_panel("mb_joint", choice, data$continuous_ints)
+    observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
+      req(input[[ret[[1]]]], input[[ret[[2]]]])
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
+      updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
+    })
   })
-  
+
   observeEvent(input$rb_joint_ssTable_mxi_select, {
-    choice = input$rb_joint_ssTable_mxi_select
-    if (choice %in% data$continuous_ints) {
-      show("rb_joint_mxi_sb_panel")
-      for (x in data$continuous_ints) {
-        hide(paste0("rb_joint_range_", x))
-      }
-      show(paste0("rb_joint_range_", choice))
-      
-      observeEvent(ignoreInit = TRUE, list(input[[paste0("rb_joint_minRange_", choice)]], input[[paste0("rb_joint_maxRange_", choice)]]), {
-        if (!is.na(input[[paste0("rb_joint_minRange_", choice)]]) & !is.na(input[[paste0("rb_joint_maxRange_", choice)]])) {
-          e <- seq(input[[paste0("rb_joint_minRange_", choice)]], input[[paste0("rb_joint_maxRange_", choice)]])
-          data$mxi_dfs[[choice]] <- data.frame(i = rep(choice, length(e)), e = e, b = rep(paste0("Beta_G-", choice), length(e)))
-          
-          for (x in names(input)[grepl(paste0("_minRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Min.", value = input[[paste0("rb_joint_minRange_", choice)]])
-          }
-  
-          for (x in names(input)[grepl(paste0("_maxRange_", choice), names(input))]) {
-            updateNumericInput(session = session, inputId = x, label = "Max.", value = input[[paste0("rb_joint_maxRange_", choice)]])
-          }
-        }
-      })
-    } else {
-      hide("rb_joint_mxi_sb_panel")
-    }
+    choice <- input$rb_joint_ssTable_mxi_select
+    ret    <- mxi_choice_panel("rb_joint", choice, data$continuous_ints)
+    observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
+      req(input[[ret[[1]]]], input[[ret[[2]]]])
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
+      updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
+    })
   })
+  
   
 
   # G Effect vs Interaction Plot -----------------------------------------------
   observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected, input$mb_marginal_ssTable_mxi_select), {
     row <- input$mb_marginal_manhattan_plot_table_rows_selected
-    output$mb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$mb_marginal_nearest_points[row, ], data$mxi_dfs, input$mb_marginal_ssTable_mxi_select)})
+    output$mb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$mb_marginal_nearest_points[row, ], data$mb_mxi_dfs, input$mb_marginal_ssTable_mxi_select)})
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected, input$rb_marginal_ssTable_mxi_select), {
     row <- input$rb_marginal_manhattan_plot_table_rows_selected
-    output$rb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$rb_marginal_nearest_points[row, ], data$mxi_dfs, input$rb_marginal_ssTable_mxi_select)})
+    output$rb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$rb_marginal_nearest_points[row, ], data$rb_mxi_dfs, input$rb_marginal_ssTable_mxi_select)})
   })
 
   observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected, input$mb_interaction_ssTable_mxi_select), {
     row <- input$mb_interaction_manhattan_plot_table_rows_selected
-    output$mb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$mb_interaction_nearest_points[row, ], data$mxi_dfs, input$mb_interaction_ssTable_mxi_select)})
+    output$mb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$mb_interaction_nearest_points[row, ], data$mb_mxi_dfs, input$mb_interaction_ssTable_mxi_select)})
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected, input$rb_interaction_ssTable_mxi_select), {
     row <- input$rb_interaction_manhattan_plot_table_rows_selected
-    output$rb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$rb_interaction_nearest_points[row, ], data$mxi_dfs, input$rb_interaction_ssTable_mxi_select)})
+    output$rb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$rb_interaction_nearest_points[row, ], data$rb_mxi_dfs, input$rb_interaction_ssTable_mxi_select)})
   })
 
   observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected, input$mb_joint_ssTable_mxi_select), {
     row <- input$mb_joint_manhattan_plot_table_rows_selected
-    output$mb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$mb_joint_nearest_points[row, ], data$mxi_dfs, input$mb_joint_ssTable_mxi_select)})
+    output$mb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$mb_joint_nearest_points[row, ], data$mb_mxi_dfs, input$mb_joint_ssTable_mxi_select)})
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected, input$rb_joint_ssTable_mxi_select), {
     row <- input$rb_joint_manhattan_plot_table_rows_selected
-    output$rb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$rb_joint_nearest_points[row, ], data$mxi_dfs, input$rb_joint_ssTable_mxi_select)})
+    output$rb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$rb_joint_nearest_points[row, ], data$rb_mxi_dfs, input$rb_joint_ssTable_mxi_select)})
   })
 }

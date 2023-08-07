@@ -97,6 +97,7 @@ ui <- fluidPage(
         )
       )
     ),
+    
     nav_item(
       div(
         id = "img-id",

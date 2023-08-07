@@ -60,6 +60,7 @@ manhattan_box <- function(plotOutputId) {
   )
 }
 
+
 manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
   if (is.null(df)) {
     return(NULL)
@@ -86,6 +87,7 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
           axis.text        = element_text(size = 14, face = "bold"),
           legend.position  = "none")
 }
+
 
 manhattan_tooltip <- function (hover, df) {
   if (is.null(df)) {
@@ -136,6 +138,7 @@ qq_box <- function(plotOutputId) {
   )
 }
 
+
 qq_plot <- function(df, h) {
   if (is.null(df)) {
     return(NULL)
@@ -172,6 +175,7 @@ variantTable_box <- function(tableOutputId) {
   )
 }
 
+
 variantTable <- function(df, pcol, variant_columns, variant_colnames) {
   DT::datatable(
     df[, c(pcol, variant_columns)],
@@ -196,6 +200,7 @@ variantTable <- function(df, pcol, variant_columns, variant_colnames) {
     )
   ) %>% formatRound(columns=c(1), digits=2)
 }
+
 
 ssTable_box <- function(tableOutputPrefix) {
   tableOutputIds <- paste0(tableOutputPrefix, 1:3)
@@ -226,6 +231,7 @@ ssTable_box <- function(tableOutputPrefix) {
       )
   ))
 }
+
 
 ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_columns, covariances, cov_rownames) {
   if (se == "mb") {
@@ -341,9 +347,7 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
 }
   
 
-
-rangeInputs <- function(se, test, x) {
-  prefix <- paste0(se, "_", test)
+rangePanel <- function(x, prefix) {
   div(
     style = "text-align: center;",
     hidden(
@@ -364,9 +368,8 @@ rangeInputs <- function(se, test, x) {
   )
 }
 
-mxi_panel <- function(se, test, interactions, continuous_ints, rangeInputs) {
-  prefix <- paste0(se, "_", test)
-  
+
+mxi_panel <- function(prefix, interactions, panel) {
   return(
     sidebarLayout(  
       sidebarPanel(
@@ -377,7 +380,7 @@ mxi_panel <- function(se, test, interactions, continuous_ints, rangeInputs) {
           fluidRow(
             id = paste0(prefix, "_mxi_sb_panel"),
             HTML("<b>Range: </b>"),
-            tagList(rangeInputs)
+            tagList(panel)
         ))
         
       ),
@@ -388,13 +391,55 @@ mxi_panel <- function(se, test, interactions, continuous_ints, rangeInputs) {
   )
 }
 
+
+mxi_choice_panel <- function(prefix, choice, ints) {
+  minRange = paste0(prefix, "_minRange_", choice)
+  maxRange = paste0(prefix, "_maxRange_", choice)
+  if (choice %in% ints) {
+    shinyjs::show(paste0(prefix, "_mxi_sb_panel"))
+    sapply(ints, FUN = function(x) shinyjs::hide(paste0(prefix, "_range_", x)))
+    show(paste0(prefix, "_range_", choice))
+    return(list(minRange, maxRange, choice))
+    
+  } else {
+    shinyjs::hide(paste0(prefix, "_mxi_sb_panel"))
+    return(list(minRange, maxRange, NULL))
+  }
+  
+  return(list(minRange, maxRange, NULL))
+}
+
+
+mxiDF <- function(choice, minRange, maxRange, prefix) {
+  e <- seq(minRange, maxRange)
+  n <- length(e)
+  data.frame(i = rep(choice, n), 
+            e = e, 
+            b = rep(paste0(prefix, choice), n))
+}
+
+
+updateRangeInputs <- function(ranges, session, label, value) {
+  for (x in ranges) {
+    updateNumericInput(session = session,
+                       inputId = x,
+                       label   = label,
+                       value   = value)
+  }
+}
+
+
 mxi_plot <- function(df, mxi_dfs, choice) {
   if (is.null(df) | is.null(mxi_dfs[[choice]]) | is.null(choice)) {
     return(NULL)
   }
   
   if (nrow(df) != 0 & nrow(mxi_dfs[[choice]]) != 0 & length(choice) != 0) {
-    mxi_dfs[[choice]]$m <- df[["Beta_G"]] + (as.numeric(mxi_dfs[[choice]]$e) * df[[mxi_dfs[[choice]]$b[1]]])
+    if (grepl("^robust_Beta_", mxi_dfs[[choice]]$b[1])) {
+      mxi_dfs[[choice]]$m <- df[["robust_Beta_G"]] + (as.numeric(as.character(mxi_dfs[[choice]]$e)) * df[[mxi_dfs[[choice]]$b[1]]])
+    } else {
+      mxi_dfs[[choice]]$m <- df[["Beta_G"]] + (as.numeric(as.character(mxi_dfs[[choice]]$e)) * df[[mxi_dfs[[choice]]$b[1]]])
+    }
     
     p <- ggplot2::ggplot(mxi_dfs[[choice]], aes(x = e, y = m, group = i)) +
           geom_point()
@@ -445,6 +490,7 @@ get_cumulative_length <- function(chrom_lengths) {
   return(cumulative_length)
 }
 
+
 get_x_breaks <- function(chrom_lengths) {
   cumulative_length <- get_cumulative_length(chrom_lengths)
   x_breaks <-cumulative_length+round(chrom_lengths/2)
@@ -466,17 +512,4 @@ get_chr_colors <- function(df, colors) {
   cols <- rep(colors, ceiling(nchr / length(colors)))
   
   return(unlist(lapply(1:nchr, function(x) data.frame(color = rep(cols[x], df$N[x])))))
-}
-
-
-subset_data <- function(subDF, pcol, nvar) {
-  colnames(subDF)[colnames(subDF) == pcol]  <- "LOGP"
-  colnames(subDF)[colnames(subDF) == "cumulative_pos"] <- "CUMPOS"
-  
-  subDF[, round_pcol := round(LOGP, digits = 3)]
-  subDF[, round_pos  := plyr::round_any(CUMPOS, 100000)]
-  subDF[, duplicated := (fduplicated(subDF$round_pos) & fduplicated(subDF$round_pcol))]
-  subDF <- subDF[!subDF$duplicated | subDF$LOGP > 8, ]
-
-  return(as.data.frame(subDF[,c("index", "CHR", "POS", "CUMPOS", "LOGP", "duplicated")]))
 }
