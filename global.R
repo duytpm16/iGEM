@@ -1,9 +1,5 @@
-# INSTALL DEPENDENCIES ---------------------------------------------------------
-
 source('dependencies.R')
 
-
-# FLUID DESIGN FUNCTION --------------------------------------------------------
 
 fluid_design <- function(test, model) {
   fluidRow(
@@ -62,12 +58,8 @@ manhattan_box <- function(plotOutputId) {
 
 
 manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
-  if (is.null(df)) {
-    return(NULL)
-  }
   colnames(df) <- c("CUMPOS", "LOGP")
-  
-  y.max <- ceiling(max(df$LOGP)) + 5
+  ymax <- ceiling(max(df$LOGP)) + 5
   
   ggplot(df, aes(x=CUMPOS, y=LOGP)) +
     geom_point(color = chr_color, size = 2.5, alpha = 0.5) +
@@ -75,8 +67,6 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
     ggtitle("") +
     xlab("Chromosome") +
     ylab(expression(-log[10](italic(p)))) +
-    scale_x_continuous(expand = c(0.01,0), breaks = x_breaks, labels = names(x_breaks)) +
-    scale_y_continuous(expand = c(0.01,0), limits = c(0, y.max), breaks = round(seq(0, y.max, length.out = 6))) +
     theme(panel.background = element_blank(),
           panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
           panel.grid       = element_line(color = "grey95"),
@@ -85,7 +75,9 @@ manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
           axis.title.x     = element_text(margin =  margin(t = 10, r = 0, b = 0, l = 0)),
           axis.title.y     = element_text(margin =  margin(t = 0, r = 10, b = 0, l = 0)),
           axis.text        = element_text(size = 14, face = "bold"),
-          legend.position  = "none")
+          legend.position  = "none") + 
+    scale_x_continuous(expand = c(0.01,0), breaks = x_breaks, labels = names(x_breaks)) +
+    scale_y_continuous(expand = c(0.01,0), limits = c(0, ymax), breaks = round(seq(0, ymax, length.out = 6)))
 }
 
 
@@ -93,7 +85,9 @@ manhattan_tooltip <- function (hover, df) {
   if (is.null(df)) {
     return(NULL)
   }
+  
   colnames(df) <- c("CHR", "POS", "CUMPOS", "LOGP")
+  
   point <- nearPoints(df, hover, maxpoints =  1,
                       xvar = "CUMPOS",  yvar = "LOGP")
   
@@ -117,8 +111,7 @@ manhattan_tooltip <- function (hover, df) {
     style = style,
     p(HTML(paste0("<b> CHR: </b>", point$CHR, "<br/>",
                   "<b> POS: </b>", point$POS, "<br/>",
-                  "<b> -log10(p): </b>", format(round(point$LOGP, 2), nsmall = 2)))
-    )
+                  "<b> -log10(p): </b>", format(round(point$LOGP, 2), nsmall = 2))))
   )
 }
 
@@ -140,23 +133,19 @@ qq_box <- function(plotOutputId) {
 
 
 qq_plot <- function(df, h) {
-  if (is.null(df)) {
-    return(NULL)
-  }
-
   ggplot(df, aes(x = y, y = x)) +
     geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
     geom_point() +
     ggtitle(bquote(lambda==.(h))) +
+    ylab(expression(paste('Observed ', -log[10](italic(p))))) +
+    xlab(expression(paste('Expected ', -log[10](italic(p))))) +
     theme(panel.background = element_blank(),
           panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
           panel.grid       = element_line(color = "grey95"),
           plot.title       = element_text(size = 18, face = "bold", hjust = 0.1, vjust = -15),
           axis.line        = element_line(linewidth = 0.6),
           axis.title       = element_text(size = 16, face = "bold"),
-          axis.text        = element_text(size = 15, face = "bold")) +
-    ylab(expression(paste('Observed ', -log[10](italic(p))))) +
-    xlab(expression(paste('Expected ', -log[10](italic(p)))))
+          axis.text        = element_text(size = 15, face = "bold"))
 }
 
 
@@ -183,11 +172,10 @@ variantTable <- function(df, pcol, variant_columns, variant_colnames) {
     rownames  = FALSE,
     escape    = FALSE,
     selection = 'single',
+    style     = 'bootstrap4', 
     caption   = htmltools::tags$caption(
                   style = 'caption-side: top; text-align: left;',
-                  "Select a row to view the summary statistics."
-                ),
-    style = 'bootstrap4', 
+                  "Select a row to view the summary statistics."),
     options   = list(
       dom = 'tp',
       search = list(regex = TRUE, caseInsensitive = TRUE),
@@ -207,7 +195,6 @@ ssTable_box <- function(tableOutputPrefix) {
   
   div(
     style = "box-shadow: 5px 10px #D3D3D3; color: black;",
-    
     bslib::navset_card_tab(
       nav_panel(
         title = "Summary Statistics",
@@ -229,7 +216,8 @@ ssTable_box <- function(tableOutputPrefix) {
           uiOutput(outputId = paste0(tableOutputPrefix, "_mxi_ui"))
         )
       )
-  ))
+    )
+  )
 }
 
 
@@ -253,8 +241,8 @@ ssTables <- function(output, se, test, df, int_colnames, beta_columns, se_column
   }
   
   beta_se <- NULL
-  covs  <- NULL
-  pvals <- NULL
+  covs    <- NULL
+  pvals   <- NULL
   if (nrow(df) != 0) {
     beta_se <- list(beta = df[, beta_columns], se = df[, se_columns])
     beta_se <- rbindlist(beta_se, use.names = FALSE)
@@ -354,14 +342,10 @@ rangePanel <- function(x, prefix) {
       fluidRow(
         id = paste0(prefix, "_range_", x),
         column(width = 6,
-               numericInput(inputId = paste0(prefix, "_minRange_", x),
-                            label = HTML("Min."),
-                            value = 0),
+               numericInput(inputId = paste0(prefix, "_minRange_", x), label = "Min.", value = 0),
         ),
         column(width = 6   ,
-               numericInput(inputId = paste0(prefix, "_maxRange_", x),
-                            label = "Max.",
-                            value = 0)
+               numericInput(inputId = paste0(prefix, "_maxRange_", x), label = "Max.", value = 0)
         )
       )
     )
@@ -370,29 +354,27 @@ rangePanel <- function(x, prefix) {
 
 
 mxi_panel <- function(prefix, interactions, panel) {
-  return(
-    sidebarLayout(  
-      sidebarPanel(
-        selectInput(inputId  = paste0(prefix, "_ssTable_mxi_select"),
-                    label    = HTML("<b>Select interaction:</b>"),
-                    choices  = interactions),
-        hidden(
-          fluidRow(
-            id = paste0(prefix, "_mxi_sb_panel"),
-            HTML("<b>Range: </b>"),
-            tagList(panel)
-        ))
-        
-      ),
-      mainPanel(
-        plotOutput(paste0(prefix, "_ssTable_mxi"))
+  sidebarLayout(  
+    sidebarPanel(
+      selectInput(inputId  = paste0(prefix, "_ssTable_mxi_select"),
+                  label    = HTML("<b>Select interaction:</b>"),
+                  choices  = interactions),
+      hidden(
+        fluidRow(
+          id = paste0(prefix, "_mxi_sb_panel"),
+          HTML("<b>Range: </b>"),
+          tagList(panel)
+        )
       )
+    ),
+    mainPanel(
+      plotOutput(paste0(prefix, "_ssTable_mxi"))
     )
   )
 }
 
 
-mxi_choice_panel <- function(prefix, choice, ints) {
+toggle_rangePanel <- function(prefix, choice, ints) {
   minRange = paste0(prefix, "_minRange_", choice)
   maxRange = paste0(prefix, "_maxRange_", choice)
   if (choice %in% ints) {
@@ -413,58 +395,47 @@ mxi_choice_panel <- function(prefix, choice, ints) {
 mxiDF <- function(choice, minRange, maxRange, prefix) {
   e <- seq(minRange, maxRange)
   n <- length(e)
-  data.frame(i = rep(choice, n), 
-            e = e, 
-            b = rep(paste0(prefix, choice), n))
+  data.frame(i = rep(choice, n), e = e, b = rep(paste0(prefix, choice), n))
 }
 
 
 updateRangeInputs <- function(ranges, session, label, value) {
   for (x in ranges) {
-    updateNumericInput(session = session,
-                       inputId = x,
-                       label   = label,
-                       value   = value)
+    updateNumericInput(session = session, inputId = x, label = label, value = value)
   }
 }
 
 
-mxi_plot <- function(df, mxi_dfs, choice) {
-  if (is.null(df) | is.null(mxi_dfs[[choice]]) | is.null(choice)) {
+mxi_plot <- function(df, mxi_df, choice, beta_g) {
+  if (is.null(df) | is.null(mxi_df) | is.null(choice)) {
     return(NULL)
   }
   
-  if (nrow(df) != 0 & nrow(mxi_dfs[[choice]]) != 0 & length(choice) != 0) {
-    if (grepl("^robust_Beta_", mxi_dfs[[choice]]$b[1])) {
-      mxi_dfs[[choice]]$m <- df[["robust_Beta_G"]] + (as.numeric(as.character(mxi_dfs[[choice]]$e)) * df[[mxi_dfs[[choice]]$b[1]]])
-    } else {
-      mxi_dfs[[choice]]$m <- df[["Beta_G"]] + (as.numeric(as.character(mxi_dfs[[choice]]$e)) * df[[mxi_dfs[[choice]]$b[1]]])
-    }
-    
-    p <- ggplot2::ggplot(mxi_dfs[[choice]], aes(x = e, y = m, group = i)) +
-          geom_point()
-    
-    if (nrow(mxi_dfs[[choice]]) != 1) {
-      p <- p + geom_line()
-    } 
-    
-    p <- p +
-           theme(panel.background = element_blank(),
-                 panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
-                 panel.grid       = element_line(color = "grey95"),
-                 axis.line        = element_line(linewidth = 0.6),
-                 axis.title       = element_text(size = 16, face = "bold"),
-                 axis.text        = element_text(size = 15, face = "bold"),
-                 plot.title       = element_text(size = 18, face = "bold", hjust = 0.5),
-                 legend.position  = "none") +
-           ggtitle(df$SNPID) + 
-           ylab("Genotype Effects") +
-           xlab(choice) + 
-           scale_y_continuous(breaks = seq(min(mxi_dfs[[choice]]$m), max(mxi_dfs[[choice]]$m), length.out = 5))
-    
-    return(p)
-  } 
-  return (NULL)
+  if (nrow(df) == 0 | nrow(mxi_df) == 0 | length(choice) == 0) {
+    return(NULL)
+  }
+  
+  if (is.na(df[[mxi_df$b[1]]])) {
+    return(NULL)
+  }
+
+  mxi_df$m <- df[[beta_g]] + (as.numeric(as.character(mxi_df$e)) * df[[mxi_df$b[1]]])
+  
+  ggplot2::ggplot(mxi_df, aes(x = e, y = m, group = 1)) + 
+    geom_point() + 
+    geom_line() +
+    ggtitle(df$SNPID) +
+    xlab(choice) +
+    ylab("Genotype Effects") +
+    theme(panel.background = element_blank(),
+          panel.border     = element_rect(colour = "black", fill=NA, linewidth =1.5),
+          panel.grid       = element_line(color = "grey95"),
+          axis.line        = element_line(linewidth = 0.6),
+          axis.title       = element_text(size = 16, face = "bold"),
+          axis.text        = element_text(size = 15, face = "bold"),
+          plot.title       = element_text(size = 18, face = "bold", hjust = 0.5),
+          legend.position  = "none") +
+    scale_y_continuous(breaks = seq(min(mxi_df$m), max(mxi_df$m), length.out = 5))
 }
 
 
@@ -482,7 +453,6 @@ chrom_lengths_hg38=c("1"  = 248956422, "2"  = 242193529, "3"  = 198295559,
 
 get_cumulative_length <- function(chrom_lengths) {
   cumulative_length <- 0
-  
   if(length(chrom_lengths) > 1){
     cumulative_length <- head(c(0,cumsum(x = unname(chrom_lengths))), -1)
     names(cumulative_length) <- names(chrom_lengths)
@@ -502,7 +472,6 @@ get_x_breaks <- function(chrom_lengths) {
     names(x_breaks)[20]='20'
     names(x_breaks)[22]='22'
   }
-  
   return(x_breaks)
 }
 
@@ -510,6 +479,5 @@ get_x_breaks <- function(chrom_lengths) {
 get_chr_colors <- function(df, colors) {
   nchr <- nrow(df)
   cols <- rep(colors, ceiling(nchr / length(colors)))
-  
   return(unlist(lapply(1:nchr, function(x) data.frame(color = rep(cols[x], df$N[x])))))
 }

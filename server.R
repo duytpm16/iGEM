@@ -40,12 +40,12 @@ server <- function(input, output, session) {
       round_df <- data.table(index = 1:nvar,
                              round_cpos = df[["cumulative_pos"]],
                              round_pval = round(df[[pcol]], digits = 1))
-      if (nvar > 1000000) {gc()}
+      if (nvar > 500000) {gc()}
       round_df[round_pval >   8, round_cpos := plyr::round_any(round_cpos, accuracy = 100000)]
       round_df[round_pval <=  8, ':='(round_pval = plyr::round_any(round_pval, accuracy = 0.2), round_cpos = plyr::round_any(round_cpos, accuracy = 500000))]
-      if (nvar > 1000000) {gc()}
+      if (nvar > 500000) {gc()}
       round_df <- round_df[!fduplicated(round_df[,c("round_cpos", "round_pval")]), ]
-      if (nvar > 1000000) {gc()}
+      if (nvar > 500000) {gc()}
       keep[df[[pcol]] > 8] <- TRUE
       keep[round_df[["index"]]] <- TRUE
       
@@ -64,25 +64,30 @@ server <- function(input, output, session) {
     rm(index, index2, keep, mh_keep)
     gc(verbose = FALSE)
     
+    
     # Get interactions including marginal columns
     interactions <- c("Beta_Marginal", "Beta_G", coln[grepl("^Beta_G-", coln)])
     interactions <- gsub("Beta_", "", interactions)
-    int_colnames <- c("Marginal", "Main", gsub("G[-]", "G x ", interactions[grepl("^G[-]", interactions)]))
+    int_colnames <- c("Marginal", "Main", gsub("G[-]", "G x ", interactions[-c(1:2)]))
 
     
-    ## Betas and SE-------------------------------------------------------------
-    data$mb_beta <- paste0("Beta_", interactions)
-    data$rb_beta <- data$mb_beta
-    data$mb_beta_prefix <- "Beta_G-"
-    data$rb_beta_prefix <- "Beta_G-"
+    ## Betas--------------------------------------------------------------------
+    beta_columns <- paste0("Beta_", interactions)
+    data$mb_beta <- beta_columns
+    data$rb_beta <- beta_columns
+    data$mb_betaG_prefix   <- "Beta_G"
+    data$rb_betaG_prefix   <- "Beta_G"
+    data$mb_betaInt_prefix <- "Beta_G-"
+    data$rb_betaInt_prefix <- "Beta_G-"
     if(any(grepl("^robust_Beta_", coln))){
-      data$rb_beta <- paste0("robust_Beta_", interactions)
-      data$rb_beta_prefix <- "robust_Beta_G-"
+      data$rb_beta <- paste0("robust_", beta_columns)
+      data$rb_betaG_prefix   <- "robust_Beta_G"
+      data$rb_betaInt_prefix <- "robust_Beta_G-"
     }
-
     
-    data$mb_se   <- paste0("SE_Beta_", interactions)
-    data$rb_se   <- paste0("robust_SE_Beta_", interactions)
+    ## SE-----------------------------------------------------------------------
+    data$mb_se <- paste0("SE_Beta_", interactions)
+    data$rb_se <- paste0("robust_SE_Beta_", interactions)
     data$int_colnames <- int_colnames
     
     
@@ -104,7 +109,6 @@ server <- function(input, output, session) {
     interactions <- gsub("G[-]", "", interactions[-c(1,2)])
     cat_interactions  <- coln[grepl(paste0("^N[_]", interactions, collapse = "|"), coln)]
   
-    
     mb_mxi_dfs <- vector(mode = "list", length = length(interactions))
     rb_mxi_dfs <- vector(mode = "list", length = length(interactions))
     names(mb_mxi_dfs) <- interactions
@@ -123,8 +127,8 @@ server <- function(input, output, session) {
       
       for (x in names(mb_mxi_dfs)) {
         if (!is.null(mb_mxi_dfs[[x]])) {
-          mb_mxi_dfs[[x]] <- data.frame(i = rep(x, length(mb_mxi_dfs[[x]])), e = mb_mxi_dfs[[x]][order(mb_mxi_dfs[[x]])], b = rep(paste0(data$mb_beta_prefix, x), length(mb_mxi_dfs[[x]])))
-          rb_mxi_dfs[[x]] <- data.frame(i = rep(x, length(rb_mxi_dfs[[x]])), e = rb_mxi_dfs[[x]][order(rb_mxi_dfs[[x]])], b = rep(paste0(data$rb_beta_prefix, x), length(rb_mxi_dfs[[x]])))
+          mb_mxi_dfs[[x]] <- data.frame(i = rep(x, length(mb_mxi_dfs[[x]])), e = as.factor(mb_mxi_dfs[[x]][order(mb_mxi_dfs[[x]])]), b = rep(paste0(data$mb_betaInt_prefix, x), length(mb_mxi_dfs[[x]])))
+          rb_mxi_dfs[[x]] <- data.frame(i = rep(x, length(rb_mxi_dfs[[x]])), e = as.factor(rb_mxi_dfs[[x]][order(rb_mxi_dfs[[x]])]), b = rep(paste0(data$rb_betaInt_prefix, x), length(rb_mxi_dfs[[x]])))
         }
       }
       categorical_ints <- names(mb_mxi_dfs[!sapply(mb_mxi_dfs,is.null)])
@@ -185,11 +189,11 @@ server <- function(input, output, session) {
   observeEvent(input$gwas, {
     if (!button$gwis_clicked) {
       button$gwis_clicked = TRUE
-      updateButton(session,'gwas',  style = "warning",   icon = icon("chart-column"))
+      updateButton(session,'gwas', style = "warning", icon = icon("chart-column"))
       show("gwas_panel")
     } else {
       button$gwis_clicked = FALSE
-      updateButton(session,'gwas',  style = "secondary",   icon = icon("chart-column"))
+      updateButton(session,'gwas', style = "secondary", icon = icon("chart-column"))
       hide("gwas_panel")
     }
   })
@@ -205,6 +209,7 @@ server <- function(input, output, session) {
       hide("gwis_rb_interaction_panel")
       hide("gwis_mb_joint_panel")
       hide("gwis_rb_joint_panel")
+      
     } else if (selectInputs()[[1]] == "marginal" & selectInputs()[[2]] == "robust") {
       hide("gwis_mb_marginal_panel")
       show("gwis_rb_marginal_panel")
@@ -212,6 +217,7 @@ server <- function(input, output, session) {
       hide("gwis_rb_interaction_panel")
       hide("gwis_mb_joint_panel")
       hide("gwis_rb_joint_panel")
+      
     } else if (selectInputs()[[1]] == "interaction" & selectInputs()[[2]] == "modelbased") {
       hide("gwis_mb_marginal_panel")
       hide("gwis_rb_marginal_panel")
@@ -219,6 +225,7 @@ server <- function(input, output, session) {
       hide("gwis_rb_interaction_panel")
       hide("gwis_mb_joint_panel")
       hide("gwis_rb_joint_panel")
+      
     } else if (selectInputs()[[1]] == "interaction" & selectInputs()[[2]] == "robust") {
       hide("gwis_mb_marginal_panel")
       hide("gwis_rb_marginal_panel")
@@ -226,6 +233,7 @@ server <- function(input, output, session) {
       show("gwis_rb_interaction_panel")
       hide("gwis_mb_joint_panel")
       hide("gwis_rb_joint_panel")
+      
     } else if (selectInputs()[[1]] == "joint" & selectInputs()[[2]] == "modelbased") {
       hide("gwis_mb_marginal_panel")
       hide("gwis_rb_marginal_panel")
@@ -233,6 +241,7 @@ server <- function(input, output, session) {
       hide("gwis_rb_interaction_panel")
       show("gwis_mb_joint_panel")
       hide("gwis_rb_joint_panel")
+      
     }  else if (selectInputs()[[1]] == "joint" & selectInputs()[[2]] == "robust") {
       hide("gwis_mb_marginal_panel")
       hide("gwis_rb_marginal_panel")
@@ -308,26 +317,32 @@ server <- function(input, output, session) {
   
   # Manhattan Plot -------------------------------------------------------------
   output$mb_marginal_manhattan_plot <- renderPlot({
+    req(data$mh_data$P_Value_Marginal)
     manhattan_plot(data$df[data$mh_data$P_Value_Marginal, c("cumulative_pos", "P_Value_Marginal")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_marginal)
   })
   
   output$rb_marginal_manhattan_plot <- renderPlot({
+    req(data$mh_data$robust_P_Value_Marginal)
     manhattan_plot(data$df[data$mh_data$robust_P_Value_Marginal, c("cumulative_pos", "robust_P_Value_Marginal")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_marginal)
   })
   
   output$mb_interaction_manhattan_plot <- renderPlot({
+    req(data$mh_data$P_Value_Interaction)
     manhattan_plot(data$df[data$mh_data$P_Value_Interaction, c("cumulative_pos", "P_Value_Interaction")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_interaction)
   })
   
   output$rb_interaction_manhattan_plot <- renderPlot({
+    req(data$mh_data$robust_P_Value_Interaction)
     manhattan_plot(data$df[data$mh_data$robust_P_Value_Interaction, c("cumulative_pos", "robust_P_Value_Interaction")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_interaction)
   })
   
   output$mb_joint_manhattan_plot <- renderPlot({
+    req(data$mh_data$P_Value_Joint)
     manhattan_plot(data$df[data$mh_data$P_Value_Joint, c("cumulative_pos", "P_Value_Joint")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$mb_joint)
   })
 
   output$rb_joint_manhattan_plot <- renderPlot({
+    req(data$mh_data$robust_P_Value_Joint)
     manhattan_plot(data$df[data$mh_data$robust_P_Value_Joint, c("cumulative_pos", "robust_P_Value_Joint")], data$x_breaks, mh_sigThreshold(), mh_sigColor(), mh_chrColor()$rb_joint)
   })
   
@@ -389,26 +404,32 @@ server <- function(input, output, session) {
   
   # QQ Plot --------------------------------------------------------------------
   output$mb_marginal_qq_plot <- renderPlot({
+    req(data$qq$P_Value_Marginal, data$lambda$P_Value_Marginal)
     qq_plot(data$qq$P_Value_Marginal, data$lambda$P_Value_Marginal)
   })
   
   output$rb_marginal_qq_plot <- renderPlot({
+    req(data$qq$robust_P_Value_Marginal, data$lambda$robust_P_Value_Marginal)
     qq_plot(data$qq$robust_P_Value_Marginal, data$lambda$robust_P_Value_Marginal)
   })
   
   output$mb_interaction_qq_plot <- renderPlot({
+    req(data$qq$P_Value_Interaction, data$lambda$P_Value_Interaction)
     qq_plot(data$qq$P_Value_Interaction, data$lambda$P_Value_Interaction)
   })
   
   output$rb_interaction_qq_plot <- renderPlot({
+    req(data$qq$robust_P_Value_Interaction, data$lambda$robust_P_Value_Interaction)
     qq_plot(data$qq$robust_P_Value_Interaction, data$lambda$robust_P_Value_Interaction)
   })
   
   output$mb_joint_qq_plot <- renderPlot({
+    req(data$qq$P_Value_Joint, data$lambda$P_Value_Joint)
     qq_plot(data$qq$P_Value_Joint, data$lambda$P_Value_Joint)
   })
   
   output$rb_joint_qq_plot <- renderPlot({
+    req(data$qq$robust_P_Value_Joint, data$lambda$robust_P_Value_Joint)
     qq_plot(data$qq$robust_P_Value_Joint, data$lambda$robust_P_Value_Joint)
   })
   
@@ -603,11 +624,11 @@ server <- function(input, output, session) {
   # G Effect vs Interaction Choice Panel----------------------------------------
   observeEvent(input$mb_marginal_ssTable_mxi_select, {
     choice <- input$mb_marginal_ssTable_mxi_select
-    ret    <- mxi_choice_panel("mb_marginal", choice, data$continuous_ints)
+    ret    <- toggle_rangePanel("mb_marginal", choice, data$continuous_ints)
     observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
       req(input[[ret[[1]]]], input[[ret[[2]]]])
-      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
-      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_betaInt_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_betaInt_prefix)
       updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
       updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
     })
@@ -615,11 +636,11 @@ server <- function(input, output, session) {
   
   observeEvent(input$rb_marginal_ssTable_mxi_select, {
     choice <- input$rb_marginal_ssTable_mxi_select
-    ret    <- mxi_choice_panel("rb_marginal", choice, data$continuous_ints)
+    ret    <- toggle_rangePanel("rb_marginal", choice, data$continuous_ints)
     observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
       req(input[[ret[[1]]]], input[[ret[[2]]]])
-      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
-      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_betaInt_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_betaInt_prefix)
       updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
       updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
     })
@@ -627,11 +648,11 @@ server <- function(input, output, session) {
   
   observeEvent(input$mb_interaction_ssTable_mxi_select, {
     choice <- input$mb_interaction_ssTable_mxi_select
-    ret    <- mxi_choice_panel("mb_interaction", choice, data$continuous_ints)
+    ret    <- toggle_rangePanel("mb_interaction", choice, data$continuous_ints)
     observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
       req(input[[ret[[1]]]], input[[ret[[2]]]])
-      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
-      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_betaInt_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_betaInt_prefix)
       updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
       updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
     })
@@ -639,11 +660,11 @@ server <- function(input, output, session) {
   
   observeEvent(input$rb_interaction_ssTable_mxi_select, {
     choice <- input$rb_interaction_ssTable_mxi_select
-    ret    <- mxi_choice_panel("rb_interaction", choice, data$continuous_ints)
+    ret    <- toggle_rangePanel("rb_interaction", choice, data$continuous_ints)
     observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
       req(input[[ret[[1]]]], input[[ret[[2]]]])
-      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
-      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_betaInt_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_betaInt_prefix)
       updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
       updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
     })
@@ -651,11 +672,11 @@ server <- function(input, output, session) {
   
   observeEvent(input$mb_joint_ssTable_mxi_select, {
     choice <- input$mb_joint_ssTable_mxi_select
-    ret    <- mxi_choice_panel("mb_joint", choice, data$continuous_ints)
+    ret    <- toggle_rangePanel("mb_joint", choice, data$continuous_ints)
     observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
       req(input[[ret[[1]]]], input[[ret[[2]]]])
-      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
-      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_betaInt_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_betaInt_prefix)
       updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
       updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
     })
@@ -663,11 +684,11 @@ server <- function(input, output, session) {
 
   observeEvent(input$rb_joint_ssTable_mxi_select, {
     choice <- input$rb_joint_ssTable_mxi_select
-    ret    <- mxi_choice_panel("rb_joint", choice, data$continuous_ints)
+    ret    <- toggle_rangePanel("rb_joint", choice, data$continuous_ints)
     observeEvent(ignoreInit = TRUE, list(input[[ret[[1]]]], input[[ret[[2]]]]), {
       req(input[[ret[[1]]]], input[[ret[[2]]]])
-      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_beta_prefix)
-      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_beta_prefix)
+      data$mb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$mb_betaInt_prefix)
+      data$rb_mxi_dfs[[choice]] <- mxiDF(choice, input[[ret[[1]]]], input[[ret[[2]]]], data$rb_betaInt_prefix)
       updateRangeInputs(names(input)[grepl(paste0("_minRange_", choice), names(input))], session, "Min.", input[[ret[[1]]]])
       updateRangeInputs(names(input)[grepl(paste0("_maxRange_", choice), names(input))], session, "Max.", input[[ret[[2]]]])
     })
@@ -677,32 +698,38 @@ server <- function(input, output, session) {
 
   # G Effect vs Interaction Plot -----------------------------------------------
   observeEvent(ignoreInit = TRUE, list(data$mb_marginal_nearest_points, input$mb_marginal_manhattan_plot_table_rows_selected, input$mb_marginal_ssTable_mxi_select), {
-    row <- input$mb_marginal_manhattan_plot_table_rows_selected
-    output$mb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$mb_marginal_nearest_points[row, ], data$mb_mxi_dfs, input$mb_marginal_ssTable_mxi_select)})
+    row    <- input$mb_marginal_manhattan_plot_table_rows_selected
+    choice <- input$mb_marginal_ssTable_mxi_select
+    output$mb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$mb_marginal_nearest_points[row, ], data$mb_mxi_dfs[[choice]], choice, data$mb_betaG_prefix)})
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_marginal_nearest_points, input$rb_marginal_manhattan_plot_table_rows_selected, input$rb_marginal_ssTable_mxi_select), {
-    row <- input$rb_marginal_manhattan_plot_table_rows_selected
-    output$rb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$rb_marginal_nearest_points[row, ], data$rb_mxi_dfs, input$rb_marginal_ssTable_mxi_select)})
+    row    <- input$rb_marginal_manhattan_plot_table_rows_selected
+    choice <- input$rb_marginal_ssTable_mxi_select
+    output$rb_marginal_ssTable_mxi <- renderPlot({mxi_plot(data$rb_marginal_nearest_points[row, ], data$rb_mxi_dfs[[choice]], choice, data$rb_betaG_prefix)})
   })
 
   observeEvent(ignoreInit = TRUE, list(data$mb_interaction_nearest_points, input$mb_interaction_manhattan_plot_table_rows_selected, input$mb_interaction_ssTable_mxi_select), {
-    row <- input$mb_interaction_manhattan_plot_table_rows_selected
-    output$mb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$mb_interaction_nearest_points[row, ], data$mb_mxi_dfs, input$mb_interaction_ssTable_mxi_select)})
+    row    <- input$mb_interaction_manhattan_plot_table_rows_selected
+    choice <- input$mb_interaction_ssTable_mxi_select
+    output$mb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$mb_interaction_nearest_points[row, ], data$mb_mxi_dfs[[choice]], choice, data$mb_betaG_prefix)})
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_interaction_nearest_points, input$rb_interaction_manhattan_plot_table_rows_selected, input$rb_interaction_ssTable_mxi_select), {
-    row <- input$rb_interaction_manhattan_plot_table_rows_selected
-    output$rb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$rb_interaction_nearest_points[row, ], data$rb_mxi_dfs, input$rb_interaction_ssTable_mxi_select)})
+    row    <- input$rb_interaction_manhattan_plot_table_rows_selected
+    choice <-  input$rb_interaction_ssTable_mxi_select
+    output$rb_interaction_ssTable_mxi <- renderPlot({mxi_plot(data$rb_interaction_nearest_points[row, ], data$rb_mxi_dfs[[choice]], choice, data$rb_betaG_prefix)})
   })
 
   observeEvent(ignoreInit = TRUE, list(data$mb_joint_nearest_points, input$mb_joint_manhattan_plot_table_rows_selected, input$mb_joint_ssTable_mxi_select), {
-    row <- input$mb_joint_manhattan_plot_table_rows_selected
-    output$mb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$mb_joint_nearest_points[row, ], data$mb_mxi_dfs, input$mb_joint_ssTable_mxi_select)})
+    row    <- input$mb_joint_manhattan_plot_table_rows_selected
+    choice <- input$mb_joint_ssTable_mxi_select
+    output$mb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$mb_joint_nearest_points[row, ], data$mb_mxi_dfs[[choice]], choice, data$mb_betaG_prefix)})
   })
 
   observeEvent(ignoreInit = TRUE, list(data$rb_joint_nearest_points, input$rb_joint_manhattan_plot_table_rows_selected, input$rb_joint_ssTable_mxi_select), {
-    row <- input$rb_joint_manhattan_plot_table_rows_selected
-    output$rb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$rb_joint_nearest_points[row, ], data$rb_mxi_dfs, input$rb_joint_ssTable_mxi_select)})
+    row    <- input$rb_joint_manhattan_plot_table_rows_selected
+    choice <- input$rb_joint_ssTable_mxi_select
+    output$rb_joint_ssTable_mxi <- renderPlot({mxi_plot(data$rb_joint_nearest_points[row, ], data$rb_mxi_dfs[[choice]], choice, data$rb_betaG_prefix)})
   })
 }
