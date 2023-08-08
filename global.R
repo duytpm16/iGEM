@@ -49,13 +49,19 @@ manhattan_box <- function(plotOutputId) {
         plotOutput(plotOutputId, 
                    height = 315,
                    click  = paste0(plotOutputId, "_click"),
-                   hover  = hoverOpts(paste0(plotOutputId,"_hover"), delay = 100, delayType = "debounce")),
+                   hover  = hoverOpts(paste0(plotOutputId,"_hover"), delay = 100, delayType = "debounce"))
+        %>% withSpinner(color="#d9230f"),
         uiOutput(paste0(plotOutputId, "_hover_info"))
       )
     )
   )
 }
 
+manhattan_void <- function() {
+  ggplot() + 
+    annotate("text", x = 4, y = 25, size=8, label = "Data not available. Please select another option.") + 
+    theme_void()
+}
 
 manhattan_plot <- function(df, x_breaks, sig_threshold, sig_color, chr_color) {
   colnames(df) <- c("CUMPOS", "LOGP")
@@ -126,7 +132,7 @@ qq_box <- function(plotOutputId) {
     ),
     card_body(
       height = "348px",
-      plotOutput(plotOutputId, height = 315)
+      plotOutput(plotOutputId, height = 315) %>% withSpinner(color="#d9230f")
     )
   )
 }
@@ -344,7 +350,7 @@ rangePanel <- function(x, prefix) {
         column(width = 6,
                numericInput(inputId = paste0(prefix, "_minRange_", x), label = "Min.", value = 0),
         ),
-        column(width = 6   ,
+        column(width = 6,
                numericInput(inputId = paste0(prefix, "_maxRange_", x), label = "Max.", value = 0)
         )
       )

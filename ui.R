@@ -81,7 +81,7 @@ ui <- fluidPage(
               selectInput(inputId = "se_choice",
                           label   = h5("Select standard errors:"),
                           choices = c("Model-based" = "modelbased",
-                                      "Robust"      = "robust"))
+                                      "Robust"      = "robust")),
             ),
             br(),
             hidden(fluid_design("mb", "marginal")),
