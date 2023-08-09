@@ -5,7 +5,7 @@ An R Shiny application to summarize and visualize gene-environment interaction (
 <br />
 
 ## 1. Requirements  
-
+- R (>= <b>3.5.0</b>)
 - bslib (>= <b>0.5.0</b>)
 - data.table
 - DT
@@ -16,9 +16,8 @@ An R Shiny application to summarize and visualize gene-environment interaction (
 - shinyBS
 - shinycssloaders
 - shinyjs
-<br />
-- R (>= <b>3.5.0</b>)
 
+<br />
 <br />
 
 ## 2. Usage
@@ -31,6 +30,8 @@ It is recommended to run iGEM locally for large file sizes (> 500 MB).
 shiny::runApp("iGEM")
 ```
 
+<br />
+
 2. **Using the web**
 
 Alternatively, iGEM can be accessed at [shinyapps.io](https://posit.co/download/rstudio-desktop/).
@@ -38,9 +39,12 @@ Alternatively, iGEM can be accessed at [shinyapps.io](https://posit.co/download/
 > 
 > iGEM is deployed for free at [shinyapps.io](https://posit.co/download/rstudio-desktop/). It allows up to 1 GB of memory usage. Therefore, a large file will not be uploaded and/or summarized successfully. In this case, please run iGEM locally.
 
+<br />
+<br />
+
 ## 3. Overview  
 
 **Figure 1.** Overview of the iGEM application
 
-<img src="https://github.com/duytpm16/iGEM/tree/main/figures/igem_fig1.png" width = "75%"/>
+<img src="https://github.com/duytpm16/iGEM/blob/main/figures/igem_fig1.png" width = "75%"/>
 
