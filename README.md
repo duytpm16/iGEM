@@ -22,7 +22,7 @@ An R Shiny application to summarize and visualize gene-environment interaction (
 
 ## 2. Usage
 
-1. **To run iGEM locally**
+1. **Run iGEM locally**
 
 It is recommended to run iGEM locally for large file sizes (> 500 MB). 
 
@@ -46,5 +46,5 @@ Alternatively, iGEM can be accessed at [shinyapps.io](https://posit.co/download/
 
 **Figure 1.** Overview of the iGEM application
 
-<img src="https://github.com/duytpm16/iGEM/blob/main/figures/igem_fig1.png" width = "75%"/>
+<img src="https://github.com/duytpm16/iGEM/blob/main/figures/igem_fig1.png"/>
 
