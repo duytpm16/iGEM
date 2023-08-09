@@ -34,10 +34,10 @@ shiny::runApp("iGEM")
 
 2. **Using the web**
 
-Alternatively, iGEM can be accessed at [shinyapps.io](https://posit.co/download/rstudio-desktop/).
+Alternatively, iGEM can be accessed at [shinyapps.io](https://duytpm18.shinyapps.io/igem/).
 > **Note** 
 > 
-> iGEM is deployed for free at [shinyapps.io](https://posit.co/download/rstudio-desktop/). It allows up to 1 GB of memory usage. Therefore, a large file will not be uploaded and/or summarized successfully. In this case, please run iGEM locally.
+> iGEM is deployed for free at [shinyapps.io](https://duytpm18.shinyapps.io/igem/). It allows up to 1 GB of memory usage. Therefore, a large file will not be uploaded and/or summarized successfully. In this case, please run iGEM locally.
 
 <br />
 <br />
