@@ -66,8 +66,13 @@ server <- function(input, output, session) {
     
     
     # Get interactions including marginal columns
-    interactions <- c("Beta_Marginal", "Beta_G", coln[grepl("^Beta_G-", coln)])
-    interactions <- gsub("Beta_", "", interactions)
+    if (any(grepl("^Beta_", coln))) {
+      interactions <- c("Beta_Marginal", "Beta_G", coln[grepl("^Beta_G-", coln)])
+      interactions <- gsub("Beta_", "", interactions)
+    } else {
+      interactions <- c("robust_Beta_Marginal", "robust_Beta_G", coln[grepl("^robust_Beta_G-", coln)])
+      interactions <- gsub("robust_Beta_", "", interactions)
+    }
     int_colnames <- c("Marginal", "Main", gsub("G[-]", "G x ", interactions[-c(1:2)]))
 
     
